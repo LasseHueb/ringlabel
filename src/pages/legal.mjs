@@ -67,6 +67,7 @@ export default function pages(ctx) {
 
     <h2>6. Teilen-Funktion</h2>
     <p>Nach dem Download kannst du die App mit „Link kopieren“ oder über die Teilen-Funktion deines Geräts weiterempfehlen. Beides arbeitet lokal: Der Link wird in deine Zwischenablage kopiert bzw. an das Teilen-Menü deines Geräts übergeben. Dabei werden keine Daten an mich oder an Dritte übertragen.</p>
+    <p>Mit „Link zu diesem Design kopieren“ kannst du ein Design als Link weitergeben. Der Link enthält nur die Design-Einstellungen (zum Beispiel Text, Farben, Schrift, Symbol, Größen und Positionen) – niemals dein Foto und niemals dein Logo. Die Einstellungen stehen im Teil der Adresse nach dem Zeichen „#“. Diesen Teil überträgt der Browser beim Aufruf der Seite nicht an den Server; er wird erst im Browser der Person ausgewertet, die den Link öffnet, und danach aus der Adresszeile entfernt. Erstellt wird der Link lokal in deinem Browser; an wen du ihn weitergibst, entscheidest du selbst. Beachte, dass alle, die den Link erhalten, den darin enthaltenen Text lesen können.</p>
 
     <h2>7. Kontakt per E-Mail</h2>
     <p>Wenn du mir eine E-Mail schreibst, verarbeite ich deine Angaben nur, um deine Anfrage zu beantworten (Art. 6 Abs. 1 lit. f DSGVO). Die E-Mail lösche ich, sobald sie erledigt ist und keine gesetzlichen Aufbewahrungspflichten bestehen.</p>
