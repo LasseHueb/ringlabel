@@ -1,7 +1,7 @@
 /*
  * Übersetzungen des Editors. Die Sprache folgt dem lang-Attribut der Seite
- * (<html lang="de">). Für eine englische Version Seiten mit lang="en" erzeugen
- * (siehe scripts/build.mjs) – das Wörterbuch "en" ist bereits vollständig.
+ * (<html lang="de"> auf /, <html lang="en"> auf /en/). Der Build übersetzt das Editor-Markup
+ * (src/partials/editor.html) mit diesen Wörterbüchern schon vorab und bricht ab, wenn ein Schlüssel fehlt.
  * Platzhalter in {geschweiften Klammern} werden zur Laufzeit ersetzt.
  */
 window.PBG = window.PBG || {};
@@ -14,6 +14,7 @@ PBG.I18N = {
     "theme.light": "Hell",
     "theme.dark": "Dunkel",
     "a11y.controls": "Einstellungen",
+    "a11y.preview": "Vorschau",
 
     "preview.canvasLabel": "Vorschau des Profilbilds mit Ring. Text: {text}. Mit Pfeiltasten verschieben, mit Plus und Minus zoomen.",
     "preview.hint": "Ziehen zum Verschieben · Mausrad, Pinch oder +/− zum Zoomen · Pfeiltasten verschieben",
@@ -66,6 +67,7 @@ PBG.I18N = {
     "own.errorFileSize": "Die Datei ist zu groß (höchstens 1 MB).",
     "own.errorFileType": "Bitte eine Vorlagen-Datei im JSON-Format wählen.",
     "own.unnamed": "Importierte Vorlage",
+    "own.filename": "ringlabel-vorlage",
 
 
     "text.heading": "3. Text",
@@ -152,6 +154,7 @@ PBG.I18N = {
     "theme.light": "Light",
     "theme.dark": "Dark",
     "a11y.controls": "Settings",
+    "a11y.preview": "Preview",
 
     "preview.canvasLabel": "Preview of the profile picture with ring. Text: {text}. Use arrow keys to move, plus and minus to zoom.",
     "preview.hint": "Drag to move · scroll wheel, pinch or +/− to zoom · arrow keys move",
@@ -204,6 +207,7 @@ PBG.I18N = {
     "own.errorFileSize": "The file is too large (max. 1 MB).",
     "own.errorFileType": "Please choose a template file in JSON format.",
     "own.unnamed": "Imported template",
+    "own.filename": "ringlabel-template",
 
 
     "text.heading": "3. Text",

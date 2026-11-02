@@ -2,20 +2,20 @@ window.PBG = window.PBG || {};
 
 /**
  * Schriftarten (lokal in /fonts, siehe css/fonts.css).
- * weights: verfügbare Schriftschnitte – Schriften ohne 700 ignorieren "Fett".
+ * label: Text oder {de, en}; weights: verfügbare Schriftschnitte – Schriften ohne 700 ignorieren "Fett".
  */
 PBG.FONTS = [
   { id: "Montserrat", label: "Montserrat", weights: [400, 700] },
   { id: "Poppins", label: "Poppins", weights: [400, 700] },
-  { id: "Oswald", label: "Oswald (schmal)", weights: [400, 700] },
+  { id: "Oswald", label: { de: "Oswald (schmal)", en: "Oswald (condensed)" }, weights: [400, 700] },
   { id: "Raleway", label: "Raleway", weights: [400, 700] },
-  { id: "Nunito", label: "Nunito (rund)", weights: [400, 700] },
-  { id: "Roboto Slab", label: "Roboto Slab (Serife)", weights: [400, 700] },
+  { id: "Nunito", label: { de: "Nunito (rund)", en: "Nunito (rounded)" }, weights: [400, 700] },
+  { id: "Roboto Slab", label: { de: "Roboto Slab (Serife)", en: "Roboto Slab (serif)" }, weights: [400, 700] },
   { id: "Playfair Display", label: "Playfair Display (elegant)", weights: [400, 700] },
-  { id: "Space Grotesk", label: "Space Grotesk (Tech)", weights: [400, 700] },
-  { id: "Caveat", label: "Caveat (Handschrift)", weights: [400, 700] },
-  { id: "Bebas Neue", label: "Bebas Neue (Plakat)", weights: [400] },
-  { id: "Archivo Black", label: "Archivo Black (kräftig)", weights: [400] }
+  { id: "Space Grotesk", label: { de: "Space Grotesk (Tech)", en: "Space Grotesk (tech)" }, weights: [400, 700] },
+  { id: "Caveat", label: { de: "Caveat (Handschrift)", en: "Caveat (handwritten)" }, weights: [400, 700] },
+  { id: "Bebas Neue", label: { de: "Bebas Neue (Plakat)", en: "Bebas Neue (poster)" }, weights: [400] },
+  { id: "Archivo Black", label: { de: "Archivo Black (kräftig)", en: "Archivo Black (bold)" }, weights: [400] }
 ];
 
 PBG.fontById = function (id) {

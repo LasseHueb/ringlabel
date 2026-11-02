@@ -166,7 +166,7 @@
     PBG.FONTS.forEach(function (f) {
       var o = document.createElement("option");
       o.value = f.id;
-      o.textContent = f.label;
+      o.textContent = PBG.loc(f.label);
       els.font.appendChild(o);
     });
     els.font.value = current;
@@ -569,7 +569,7 @@
 
   function slug(name) {
     return (name.toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "").replace(/ß/g, "ss")
-      .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "vorlage").slice(0, 40);
+      .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")).slice(0, 40);
   }
 
   function exportOwnTemplate(tpl) {
@@ -578,7 +578,8 @@
     var url = URL.createObjectURL(blob);
     var a = document.createElement("a");
     a.href = url;
-    a.download = "ringlabel-vorlage-" + slug(tpl.name) + ".json";
+    var s = slug(tpl.name);
+    a.download = t("own.filename") + (s ? "-" + s : "") + ".json";
     document.body.appendChild(a);
     a.click();
     a.remove();
