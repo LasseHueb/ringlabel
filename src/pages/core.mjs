@@ -1,5 +1,5 @@
-/* Startseite je Sprache (/ und /en/): Überschrift, Einleitung, Datenschutz-Hinweis, Editor, Text-Ideen und FAQ. */
-import { esc, fill, editor, batch, banner, page, privacyNote, trustRow, faqSection, faqJsonLd, webAppJsonLd, ui } from "../layout.mjs";
+/* Rahmen-Seite je Sprache (/ und /en/): Überschrift, Einleitung, Datenschutz-Hinweis, Editor, Mehrere Fotos, Text-Ideen, FAQ. */
+import { esc, fill, editor, batch, linkUi, crossLink, page, privacyNote, trustRow, faqSection, faqJsonLd, webAppJsonLd, ui } from "../layout.mjs";
 import { locales, languages } from "../content.mjs";
 
 function ideasSection(ctx, ideas, lang) {
@@ -35,9 +35,11 @@ export default function pages(ctx) {
         title: fill(ctx, home.title),
         description: fill(ctx, home.description),
         og: home.og,
-        editor: true,
+        tool: "frame",
+        skip: "controls",
         preset: home.preset,
         alternates,
+        langPaths: Object.fromEntries(languages.map((l) => [l, locales[l].path])),
         jsonLd: [webAppJsonLd(ctx, ctx.abs(home.path), lang), faqJsonLd(ctx, home.faq)],
         main: `
   <div class="hero">
@@ -46,11 +48,12 @@ export default function pages(ctx) {
     ${trustRow(lang)}
   </div>
   ${privacyNote(lang)}
+  ${linkUi(ctx, lang)}
   ${editor(ctx, lang)}
   ${batch(ctx, lang)}
-  ${banner(ctx, lang)}
   ${ideasSection(ctx, home.ideas, lang)}
-  ${faqSection(ctx, home.faq, ui(lang).faqHeading)}`
+  ${faqSection(ctx, home.faq, ui(lang).faqHeading)}
+  ${crossLink(ctx, lang, "banner")}`
       })
     };
   });

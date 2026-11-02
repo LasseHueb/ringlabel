@@ -12,14 +12,35 @@ const here = dirname(fileURLToPath(import.meta.url));
 const editorHtml = readFileSync(join(here, "partials/editor.html"), "utf8");
 const bannerHtml = readFileSync(join(here, "partials/banner.html"), "utf8");
 const batchHtml = readFileSync(join(here, "partials/batch.html"), "utf8");
+const linkUiHtml = readFileSync(join(here, "partials/linkui.html"), "utf8");
 
-/** Editor-Wörterbücher aus public/js/i18n.js (dieselbe Datei, die der Browser lädt). */
+/** Editor-Wörterbücher aus public/js/i18n*.js (dieselben Dateien, die der Browser lädt; hier alle zusammen). */
 const i18n = (() => {
   const sandbox = { document: { documentElement: { lang: "de" } } };
   sandbox.window = sandbox;
-  vm.runInNewContext(readFileSync(join(here, "../public/js/i18n.js"), "utf8"), sandbox);
+  for (const f of ["i18n.js", "i18n-frame.js", "i18n-banner.js"]) vm.runInNewContext(readFileSync(join(here, "../public/js", f), "utf8"), sandbox);
   return sandbox.PBG.I18N;
 })();
+
+/**
+ * Was jede Seite lädt – jede Seite nur das, was sie braucht.
+ *   frame:  Rahmen-Editor (/ und /en/)          banner: Banner-Editor (/banner/ und /en/banner/)
+ *   (ohne): Rechtstexte – nur Grundfunktionen (Farbschema)
+ * Gemeinsam: i18n.js, common.js, presets.js, icons.js, platform.js, links.js, own.js und styles.css.
+ */
+const TOOL_ASSETS = {
+  frame: {
+    scripts: ["/js/i18n.js", "/js/i18n-frame.js", "/js/common.js", "/js/presets.js", "/js/icons.js", "/js/renderer.js", "/js/platform.js",
+      "/js/links.js", "/js/own.js", "/js/app.js", "/js/zip.js", "/js/batch.js"],
+    css: ["/css/frame.css"]
+  },
+  banner: {
+    scripts: ["/js/i18n.js", "/js/i18n-banner.js", "/js/common.js", "/js/presets.js", "/js/icons.js", "/js/banner-model.js", "/js/platform.js",
+      "/js/links.js", "/js/own.js", "/js/banner.js"],
+    css: ["/css/banner.css"]
+  },
+  none: { scripts: ["/js/i18n.js", "/js/platform.js"], css: [] }
+};
 
 /** Texte (ui) der Sprache lang; Standard ist Deutsch. */
 export function ui(lang) {
@@ -54,6 +75,11 @@ export function independenceNote(ctx, lang = "de", cls = "") {
  */
 export function editor(ctx, lang = "de") {
   return localize(ctx, editorHtml, lang);
+}
+
+/** Hinweis-Leiste und Link-Dialog (partials/linkui.html), gemeinsam für beide Werkzeuge. */
+export function linkUi(ctx, lang = "de") {
+  return localize(ctx, linkUiHtml, lang);
 }
 
 /** „Mehrere Fotos“ (partials/batch.html) in der Sprache lang – übersetzt wie der Editor. */
@@ -91,19 +117,31 @@ function localize(ctx, source, lang) {
 
 const ICON_SHIELD = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3zm-1.2 14.2-3.5-3.5 1.4-1.4 2.1 2.1 4.9-4.9 1.4 1.4-6.3 6.3z" fill="currentColor"/></svg>';
 
-export function privacyNote(lang = "de") {
+/** Datenschutz-Hinweis; over = { badge, text } für andere Texte (Banner-Seite). */
+export function privacyNote(lang = "de", over = {}) {
   const l = ui(lang);
   return `<p class="privacy-note" role="note">
-    <span class="badge">${ICON_SHIELD}<strong>${esc(l.privacyBadge)}</strong></span>
-    <span>${esc(l.privacyText)}</span>
+    <span class="badge">${ICON_SHIELD}<strong>${esc(over.badge || l.privacyBadge)}</strong></span>
+    <span>${esc(over.text || l.privacyText)}</span>
   </p>`;
 }
 
-export function trustRow(lang = "de") {
+export function trustRow(lang = "de", items) {
   const check = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   return `<ul class="trust-row">
-    ${ui(lang).trust.map((x) => `<li>${check}${esc(x)}</li>`).join("")}
+    ${(items || ui(lang).trust).map((x) => `<li>${check}${esc(x)}</li>`).join("")}
   </ul>`;
+}
+
+/** Hinweis am Seitenende auf das jeweils andere Werkzeug („Passend dazu: …“). */
+export function crossLink(ctx, lang, to) {
+  const l = ui(lang);
+  const c = to === "banner" ? l.crossToBanner : l.crossToFrame;
+  const href = ctx.u(to === "banner" ? locales[lang].bannerPage.path : locales[lang].path);
+  return `<aside class="section cross-link" aria-label="${esc(c.link)}">
+    <p><strong>${esc(c.text)}</strong> <a href="${href}">${esc(c.link)}</a></p>
+    <p class="small muted">${esc(c.hint)}</p>
+  </aside>`;
 }
 
 export function faqSection(ctx, faq, heading = ui("de").faqHeading) {
@@ -125,9 +163,10 @@ export function faqJsonLd(ctx, faq) {
   };
 }
 
-export function webAppJsonLd(ctx, url, lang = "de") {
+/** WebApplication; over = { features } für die Banner-Seite. */
+export function webAppJsonLd(ctx, url, lang = "de", over = {}) {
   const c = ctx.cfg;
-  const a = (locales[lang] || locales.de).app;
+  const a = Object.assign({}, (locales[lang] || locales.de).app, over);
   return {
     "@context": "https://schema.org",
     "@type": "WebApplication",
@@ -143,15 +182,31 @@ export function webAppJsonLd(ctx, url, lang = "de") {
   };
 }
 
-/** Sprachumschalter „DE | EN“: verlinkt auf die Startseite der jeweils anderen Sprache, keine automatische Weiterleitung. */
-function langSwitch(ctx, lang) {
-  const links = languages.map((l) => l === lang
-    ? `<a href="${ctx.u(locales[l].path)}" lang="${l}" aria-current="page">${l.toUpperCase()}</a>`
-    : `<a href="${ctx.u(locales[l].path)}" lang="${l}" hreflang="${l}">${l.toUpperCase()}</a>`);
+/**
+ * Sprachumschalter „DE | EN“: wechselt auf dieselbe Seite in der anderen Sprache (langPaths), sonst auf deren Startseite.
+ * Keine automatische Weiterleitung.
+ */
+function langSwitch(ctx, lang, langPaths) {
+  const links = languages.map((l) => {
+    const href = ctx.u((langPaths && langPaths[l]) || locales[l].path);
+    return l === lang
+      ? `<a href="${href}" lang="${l}" aria-current="page">${l.toUpperCase()}</a>`
+      : `<a href="${href}" lang="${l}" hreflang="${l}">${l.toUpperCase()}</a>`;
+  });
   return `<nav class="lang-switch" aria-label="${esc(ui(lang).language)}">${links.join('<span aria-hidden="true">|</span>')}</nav>`;
 }
 
-function header(ctx, lang) {
+/** Navigation zwischen den beiden Werkzeugen; auf schmalen Bildschirmen mit Kurzbezeichnungen. */
+function toolNav(ctx, lang, tool) {
+  const l = ui(lang);
+  const item = (key, path, label, short) => `<a href="${ctx.u(path)}"${tool === key ? ' aria-current="page"' : ""}><span class="nav-long">${esc(label)}</span><span class="nav-short" aria-hidden="true">${esc(short)}</span></a>`;
+  return `<nav class="tool-nav" aria-label="${esc(l.navLabel)}">
+      ${item("frame", locales[lang].path, l.navFrame, l.navFrameShort)}
+      ${item("banner", locales[lang].bannerPage.path, l.navBanner, l.navBannerShort)}
+    </nav>`;
+}
+
+function header(ctx, lang, tool, langPaths) {
   const u = ctx.u;
   const l = ui(lang);
   return `<header class="site-header">
@@ -159,7 +214,8 @@ function header(ctx, lang) {
       <svg class="brand-logo" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="15" fill="none" stroke="currentColor" stroke-width="2" opacity=".35"/><path d="M3.5 21A13.5 13.5 0 0 0 28.5 21" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/></svg>
       <span class="brand-name">${esc(ctx.cfg.appName)}</span>
     </a>
-    ${langSwitch(ctx, lang)}
+    ${toolNav(ctx, lang, tool)}
+    ${langSwitch(ctx, lang, langPaths)}
     <div class="segmented" role="radiogroup" aria-label="${esc(l.theme)}" id="theme-switch">
       <button type="button" role="radio" data-theme-value="auto" title="${esc(l.themeAuto)}" aria-checked="true">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18V3z" fill="currentColor"/><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/></svg>
@@ -192,8 +248,9 @@ function footer(ctx, lang) {
 
 /**
  * Vollständige HTML-Seite.
- * opts: path, title, description, main (HTML), preset, noindex, canonical, og, jsonLd[], scripts[], editor(bool), bodyClass,
- *       lang (Standard "de"), alternates ([[hreflang, path], …] für Seiten, die es in mehreren Sprachen gibt)
+ * opts: path, title, description, main (HTML), preset, noindex, canonical, og, jsonLd[], scripts[], bodyClass,
+ *       tool ("frame" | "banner" | undefined: was die Seite lädt, aktive Navigation), skip (Ziel des Sprunglinks),
+ *       lang (Standard "de"), alternates ([[hreflang, path], …]), langPaths ({ de, en }: dieselbe Seite je Sprache)
  */
 export function page(ctx, opts) {
   const c = ctx.cfg;
@@ -205,10 +262,11 @@ export function page(ctx, opts) {
   const canonical = ctx.abs(opts.canonical || opts.path);
   const og = ctx.abs(opts.og || "/img/og/default.jpg");
   const ld = (opts.jsonLd || []).map((d) => `<script type="application/ld+json">${JSON.stringify(d).replace(/</g, "\\u003c")}</script>`).join("\n  ");
-  const editorScripts = opts.editor
-    ? ["/js/i18n.js", "/js/presets.js", "/js/icons.js", "/js/renderer.js", "/js/platform.js", "/js/app.js", "/js/zip.js", "/js/batch.js", "/js/banner.js"]
-    : ["/js/i18n.js", "/js/platform.js"];
-  const scripts = ["/js/config.js", ...editorScripts, ...(opts.scripts || [])];
+  const assets = TOOL_ASSETS[opts.tool || "none"];
+  const scripts = ["/js/config.js", ...assets.scripts, ...(opts.scripts || [])];
+  // Frühere Sprungmarke #banner der Startseite → eigene Banner-Seite (GitHub Pages kann nicht serverseitig weiterleiten)
+  const bannerRedirect = opts.tool === "frame"
+    ? `<script>if(location.hash==="#banner")location.replace(${JSON.stringify(u(loc.bannerPage.path))});</script>\n  ` : "";
   const ver = ctx.version;
 
   return `<!doctype html>
@@ -243,13 +301,14 @@ export function page(ctx, opts) {
   <link rel="preload" href="${u("/fonts/nunito-latin-400-normal.woff2")}" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="${u("/css/fonts.css")}?v=${ver}">
   <link rel="stylesheet" href="${u("/css/styles.css")}?v=${ver}">
-  <script>try{var t=localStorage.getItem("pbg-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+  ${assets.css.map((c) => `<link rel="stylesheet" href="${u(c)}?v=${ver}">`).join("\n  ")}
+  ${bannerRedirect}<script>try{var t=localStorage.getItem("pbg-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
   ${scripts.map((s) => `<script defer src="${u(s)}?v=${ver}"></script>`).join("\n  ")}
   ${ld}
 </head>
 <body${opts.preset ? ` data-preset="${esc(opts.preset)}"` : ""}${opts.bodyClass ? ` class="${esc(opts.bodyClass)}"` : ""}>
-  ${opts.editor ? `<a class="skip-link" href="#controls">${esc(loc.ui.skip)}</a>` : ""}
-  ${header(ctx, lang)}
+  ${opts.skip ? `<a class="skip-link" href="#${opts.skip}">${esc(loc.ui.skip)}</a>` : ""}
+  ${header(ctx, lang, opts.tool, opts.langPaths)}
   <main id="main">
   ${opts.main}
   </main>
