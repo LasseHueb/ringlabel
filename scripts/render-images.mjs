@@ -90,7 +90,7 @@ await page.evaluate(() => {
     const p = PBG.presetByKey(key);
     const s = {};
     PBG.DESIGN_KEYS.forEach((k) => { s[k] = PBG.DEFAULTS[k]; });
-    return Object.assign(s, p.values, { text: PBG.loc(p.text), textTop: PBG.loc(p.textTop), zoom: 1, offsetX: 0, offsetY: 0 });
+    return Object.assign(s, p.values, { text: PBG.presetText(p, "text"), textTop: PBG.presetText(p, "textTop"), zoom: 1, offsetX: 0, offsetY: 0 });
   };
   window.__ensureFonts = async (state) => {
     const f = PBG.fontById(state.font);
@@ -164,6 +164,22 @@ if (!only.length) {
   for (const [key, n] of [["neue-wege", 2], ["austausch", 3], ["badge-neugierig", 4]]) {
     save(`beispiele/${key}.png`, await page.evaluate(async ([k, n]) => (await window.__example(k, 540, n)).toDataURL("image/png"), [key, n]));
   }
+  // Übersicht aller Anlässe (2 × 4) für das README
+  save("beispiele/anlaesse.png", await page.evaluate(async () => {
+    const keys = PBG.PRESETS.filter((p) => p.occasion).map((p) => p.key);
+    const t = 300, gap = 16, cols = 4, rows = Math.ceil(keys.length / cols);
+    const c = document.createElement("canvas"); c.width = cols * t + (cols + 1) * gap; c.height = rows * (t + 34) + (rows + 1) * gap;
+    const x = c.getContext("2d");
+    x.fillStyle = "#ffffff"; x.fillRect(0, 0, c.width, c.height);
+    for (let i = 0; i < keys.length; i++) {
+      const p = PBG.presetByKey(keys[i]);
+      const cx = gap + (i % cols) * (t + gap), cy = gap + Math.floor(i / cols) * (t + 34 + gap);
+      x.drawImage(await window.__example(keys[i], t, i), cx, cy);
+      x.fillStyle = "#1f2937"; x.font = '700 18px "Nunito"'; x.textAlign = "center";
+      x.fillText(PBG.loc(p.name), cx + t / 2, cy + t + 24);
+    }
+    return c.toDataURL("image/png");
+  }));
   console.log("✓ Beispielbilder: public/img/beispiele/");
 }
 
