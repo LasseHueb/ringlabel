@@ -26,6 +26,9 @@ PBG.fontById = function (id) {
 /** Standardwerte – alle Maße relativ zur Bildgröße, damit Vorschau und Export identisch sind. */
 PBG.DEFAULTS = {
   text: "",
+  textTop: "",       // zweiter Text oben (Bogen und voller Ring), höchstens 40 Zeichen
+  sizeTop: 60,       // Schriftgröße des Texts oben in % der Ringbreite
+  shape: "arc",      // Form: arc (Bogen) | ring (voller Ring) | badge (Schild unten)
   font: "Montserrat",
   size: 70,          // Schriftgröße in % der Ringbreite
   bold: true,
@@ -50,10 +53,11 @@ PBG.DEFAULTS = {
 
 /** Einstellungen, die eine Vorlage ausmachen (werden gespeichert / geteilt). */
 PBG.DESIGN_KEYS = ["text", "font", "size", "bold", "uppercase", "spacing", "textPos", "textColor", "ringColor",
-  "ringColor2", "gradient", "ringWidth", "ringLength", "ringRotation", "fade", "opacity", "icon", "iconPos", "logoPos", "logoSize"];
+  "ringColor2", "gradient", "ringWidth", "ringLength", "ringRotation", "fade", "opacity", "icon", "iconPos", "logoPos", "logoSize",
+  "shape", "textTop", "sizeTop"];
 
 /**
- * Vorlagen. key = URL-Slug (/vorlage/<key>/). name/text je Sprache.
+ * Vorlagen. key = URL-Slug (/vorlage/<key>/). name/text (und optional textTop) je Sprache.
  * Die ersten Vorlagen sind bewusst schlicht (kein Verlauf, Standardschriften, keine Symbole).
  * Keine Logos, Markennamen oder Original-Farbtöne fremder Plattformen.
  */
@@ -123,6 +127,16 @@ PBG.PRESETS = [
     values: { gradient: true, ringColor: "#ff6d00", ringColor2: "#ffd600", textColor: "#1b1b1b", font: "Archivo Black", size: 62, icon: "sparkle", iconPos: "both" } },
   { key: "messe", name: { de: "Messe & Events", en: "Trade fair" }, text: { de: "Triff mich auf der Messe", en: "Meet me at the fair" },
     values: { gradient: true, ringColor: "#004d40", ringColor2: "#1565c0", font: "Raleway", uppercase: false, icon: "calendar", iconPos: "start", ringLength: 280 } },
+  // ---------- Formen: Bogen mit Text oben, voller Ring, Badge ----------
+  { key: "neue-wege", name: { de: "Neue Wege", en: "New paths" }, text: { de: "Neue Wege", en: "New paths" },
+    textTop: { de: "Mein nächstes Kapitel", en: "My next chapter" },
+    values: { gradient: true, ringColor: "#1565c0", ringColor2: "#00897b", font: "Montserrat", uppercase: false, sizeTop: 55, ringLength: 230, icon: "sparkle", iconPos: "end" } },
+  { key: "austausch", name: { de: "Austausch", en: "Let's talk" }, text: { de: "Ich freue mich auf Austausch", en: "Always happy to exchange ideas" },
+    textTop: { de: "Hallo!", en: "Hello!" },
+    values: { shape: "ring", gradient: true, ringColor: "#6a1b9a", ringColor2: "#ec407a", font: "Poppins", uppercase: false, ringWidth: 15, sizeTop: 60 } },
+  { key: "badge-neugierig", name: { de: "Badge Neugierig", en: "Curious badge" }, text: { de: "Immer neugierig", en: "Always curious" },
+    values: { shape: "badge", ringColor: "#263238", textColor: "#ffd54f", font: "Poppins", uppercase: false, ringWidth: 18, size: 60, icon: "bulb", iconPos: "start" } },
+
   { key: "ruhestand", name: { de: "Ruhestand", en: "Retired" }, text: { de: "Im Ruhestand", en: "Retired" },
     values: { gradient: true, ringColor: "#5d4037", ringColor2: "#a1887f", font: "Playfair Display", uppercase: false, icon: "leaf", iconPos: "end" } }
 ];

@@ -10,7 +10,9 @@
   var MAX_ZOOM = 4;
   var MAX_LOGO_SIDE = 512;     // Logos werden beim Laden auf höchstens 512 px verkleinert
   var MAX_LOGO_FILE_MB = 10;
-  var RANGE_KEYS = ["size", "spacing", "textPos", "ringWidth", "ringLength", "ringRotation", "fade", "opacity", "logoSize"];
+  var RANGE_KEYS = ["size", "sizeTop", "spacing", "textPos", "ringWidth", "ringLength", "ringRotation", "fade", "opacity", "logoSize"];
+  /** Regler, die je Form keine Wirkung haben und ausgeblendet werden. */
+  var HIDDEN_BY_SHAPE = { arc: [], ring: ["ringLength", "fade"], badge: ["textTop", "sizeTop", "textPos", "ringLength", "ringRotation", "fade"] };
   var COLOR_KEYS = ["textColor", "ringColor", "ringColor2"];
 
   var $ = function (id) { return document.getElementById(id); };
@@ -27,7 +29,7 @@
   var logo = null;           // Logo als Canvas (nur im Arbeitsspeicher, nie hochgeladen)
   var logoDataUrl = "";      // dasselbe Logo als PNG-Data-URL (für eigene Vorlagen im lokalen Speicher)
   var activePreset = null;
-  var lastInfo = { scale: 1, overflow: false };
+  var lastInfo = { scale: 1, overflow: false, topScale: 1, topOverflow: false };
 
   var els = {
     preview: $("preview"), stage: $("stage"),
@@ -35,6 +37,7 @@
     zoom: $("zoom"), resetCrop: $("reset-crop"), removePhoto: $("remove-photo"),
     presets: $("presets"),
     text: $("text"), textReplaced: $("text-replaced"), font: $("font"), bold: $("bold"), uppercase: $("uppercase"),
+    textTop: $("textTop"), shapeHint: $("shape-hint"), ringWidthLabel: $("ringWidth-label"),
     ownList: $("own-list"), ownEmpty: $("own-empty"), ownSaveForm: $("own-save-form"), ownName: $("own-name"),
     ownImport: $("own-import"), ownStatus: $("own-status"),
     logoInput: $("logo-input"), logoRemove: $("logo-remove"), logoStatus: $("logo-status"), logoSettings: $("logo-settings"),
@@ -150,8 +153,10 @@
 
   function updateWarnings() {
     var msgs = [];
-    if (lastInfo.overflow) msgs.push(t("text.tooLong"));
+    if (lastInfo.overflow) msgs.push(t(state.shape === "ring" || state.shape === "badge" ? "text.tooLongShape" : "text.tooLong"));
     else if (lastInfo.scale < 0.995) msgs.push(t("text.shrunk", { percent: Math.round(lastInfo.scale * 100) }));
+    if (lastInfo.topOverflow) msgs.push(t("text.topTooLong"));
+    else if (lastInfo.topScale < 0.995) msgs.push(t("text.topShrunk", { percent: Math.round(lastInfo.topScale * 100) }));
     els.textWarning.textContent = msgs.join(" ");
     els.textWarning.hidden = !msgs.length;
 
@@ -217,8 +222,22 @@
     });
   }
 
+  /** Blendet Regler aus, die bei der gewählten Form keine Wirkung haben, und passt Beschriftungen an. */
+  function updateShapeUI() {
+    var shape = HIDDEN_BY_SHAPE[state.shape] ? state.shape : "arc";
+    Object.keys(HIDDEN_BY_SHAPE.badge.concat(HIDDEN_BY_SHAPE.ring).reduce(function (o, k) { o[k] = 1; return o; }, {})).forEach(function (k) {
+      var el = $(k);
+      var field = el && (el.closest(".field") || el);
+      if (field) field.hidden = HIDDEN_BY_SHAPE[shape].indexOf(k) >= 0;
+    });
+    els.ringWidthLabel.textContent = t(shape === "badge" ? "ring.widthBadge" : "ring.width");
+    els.shapeHint.textContent = t(shape === "badge" ? "shape.hintBadge" : shape === "ring" ? "shape.hintRing" : "shape.hintArc");
+    document.querySelectorAll('input[name="shape"]').forEach(function (r) { r.checked = r.value === shape; });
+  }
+
   function syncControls() {
     els.text.value = state.text;
+    els.textTop.value = state.textTop;
     els.font.value = state.font;
     els.bold.checked = state.bold;
     els.bold.disabled = PBG.fontById(state.font).weights.indexOf(700) < 0;
@@ -241,6 +260,7 @@
     updateOutput("zoom");
     document.querySelectorAll('input[name="logoPos"]').forEach(function (r) { r.checked = r.value === state.logoPos; });
     updateLogoUI();
+    updateShapeUI();
     document.querySelectorAll('input[name="bg"]').forEach(function (r) { r.checked = r.value === state.bg; });
     document.querySelectorAll('input[name="exportSize"]').forEach(function (r) { r.checked = Number(r.value) === state.exportSize; });
     els.downloadLabel.textContent = t("export.download", { size: state.exportSize });
@@ -263,6 +283,15 @@
 
   function bindControls() {
     els.text.addEventListener("input", function () { state.text = els.text.value; changed(); });
+    els.textTop.addEventListener("input", function () { state.textTop = els.textTop.value; changed(); });
+    document.querySelectorAll('input[name="shape"]').forEach(function (r) {
+      r.addEventListener("change", function () {
+        if (!r.checked) return;
+        state.shape = r.value;
+        updateShapeUI();
+        changed();
+      });
+    });
 
     els.font.addEventListener("change", function () {
       var f = PBG.fontById(els.font.value);
@@ -393,7 +422,7 @@
   function presetState(p) {
     var s = {};
     PBG.DESIGN_KEYS.forEach(function (k) { s[k] = PBG.DEFAULTS[k]; });
-    Object.assign(s, p.values, { text: PBG.loc(p.text) });
+    Object.assign(s, p.values, { text: PBG.loc(p.text), textTop: PBG.loc(p.textTop) });
     return s;
   }
 
@@ -460,9 +489,9 @@
   var OWN_FORMAT = "ringlabel-vorlage";
   var NAME_MAX = 40;
   /** Erlaubte Bereiche (wie die Regler im Editor) – gilt für gespeicherte und importierte Vorlagen. */
-  var RANGES = { size: [35, 95], spacing: [-5, 50], textPos: [-90, 90], ringWidth: [8, 32], ringLength: [180, 350],
+  var RANGES = { size: [35, 95], sizeTop: [35, 95], spacing: [-5, 50], textPos: [-90, 90], ringWidth: [8, 32], ringLength: [180, 350],
     ringRotation: [-90, 90], fade: [0, 70], opacity: [40, 100], logoSize: [40, 100] };
-  var CHOICES = { iconPos: ["start", "end", "both"], logoPos: ["start", "end", "replace"] };
+  var CHOICES = { iconPos: ["start", "end", "both"], logoPos: ["start", "end", "replace"], shape: ["arc", "ring", "badge"] };
   var LOGO_DATA_URL = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+\/]+={0,2}$/;
 
   var ownTemplates = [];
@@ -475,6 +504,7 @@
     if (COLOR_KEYS.indexOf(k) >= 0) return typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v) ? v.toLowerCase() : undefined;
     if (k === "bold" || k === "uppercase" || k === "gradient") return typeof v === "boolean" ? v : undefined;
     if (k === "text") return typeof v === "string" && v.length <= 60 ? v : undefined;
+    if (k === "textTop") return typeof v === "string" && v.length <= 40 ? v : undefined;
     if (k === "font") return typeof v === "string" && PBG.fontById(v).id === v ? v : undefined;
     if (k === "icon") return v === "" || (typeof v === "string" && PBG.ICONS.some(function (ic) { return ic.id === v; })) ? v : undefined;
     return undefined;
@@ -760,7 +790,8 @@
   var FIELD_LABELS = { text: "text.label", font: "text.font", size: "text.size", bold: "text.bold", uppercase: "text.uppercase",
     spacing: "text.spacing", textPos: "text.position", textColor: "text.color", ringColor: "ring.color", ringColor2: "ring.color2",
     gradient: "ring.gradient", ringWidth: "ring.width", ringLength: "ring.length", ringRotation: "ring.rotation", fade: "ring.fade",
-    opacity: "ring.opacity", icon: "icon.label", iconPos: "icon.pos", logoPos: "logo.pos", logoSize: "logo.size" };
+    opacity: "ring.opacity", icon: "icon.label", iconPos: "icon.pos", logoPos: "logo.pos", logoSize: "logo.size",
+    shape: "shape.label", textTop: "text.top", sizeTop: "text.sizeTop" };
   var linkFromUrl = false;   // aktuelles Design stammt aus einem Link (für „Als eigene Vorlage speichern“)
 
   function defaultDesign() {

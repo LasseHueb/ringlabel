@@ -94,6 +94,10 @@
         <p class="field-note" id="text-replaced" data-i18n="text.replacedByLogo" hidden>Das Logo steht statt des Texts auf dem Ring. Um wieder Text zu zeigen, wähle unter „Logo“ eine andere Position.</p>
         <p class="warning" id="text-warning" role="status" aria-live="polite" hidden></p>
       </div>
+      <div class="field" id="textTop-field">
+        <label for="textTop" data-i18n="text.top">Text oben (optional)</label>
+        <input type="text" id="textTop" maxlength="40" autocomplete="off" spellcheck="false" data-i18n-placeholder="text.topPlaceholder">
+      </div>
 
       <div class="field">
         <label for="font" data-i18n="text.font">Schriftart</label>
@@ -108,6 +112,10 @@
       <div class="field">
         <div class="field-head"><label for="size" data-i18n="text.size">Schriftgröße</label><output for="size" id="size-out"></output></div>
         <input type="range" id="size" min="35" max="95" step="1" data-unit="pct">
+      </div>
+      <div class="field" id="sizeTop-field">
+        <div class="field-head"><label for="sizeTop" data-i18n="text.sizeTop">Schriftgröße oben</label><output for="sizeTop" id="sizeTop-out"></output></div>
+        <input type="range" id="sizeTop" min="35" max="95" step="1" data-unit="pct">
       </div>
       <div class="field">
         <div class="field-head"><label for="spacing" data-i18n="text.spacing">Buchstabenabstand</label><output for="spacing" id="spacing-out"></output></div>
@@ -178,6 +186,15 @@
     <!-- 5. Ring -->
     <fieldset class="panel" data-panel="ring">
       <legend data-i18n="ring.heading">5. Ring</legend>
+      <div class="field">
+        <span class="label" id="shape-label" data-i18n="shape.label">Form</span>
+        <div class="segmented segmented-text segmented-wrap" role="radiogroup" aria-labelledby="shape-label">
+          <label><input type="radio" name="shape" value="arc"><span data-i18n="shape.arc">Bogen</span></label>
+          <label><input type="radio" name="shape" value="ring"><span data-i18n="shape.ring">Voller Ring</span></label>
+          <label><input type="radio" name="shape" value="badge"><span data-i18n="shape.badge">Badge</span></label>
+        </div>
+        <p class="small muted" id="shape-hint"></p>
+      </div>
       <div class="field color-field">
         <label for="ringColor" data-i18n="ring.color">Ringfarbe</label>
         <div class="color-inputs">
@@ -197,7 +214,7 @@
       </div>
 
       <div class="field">
-        <div class="field-head"><label for="ringWidth" data-i18n="ring.width">Ringbreite</label><output for="ringWidth" id="ringWidth-out"></output></div>
+        <div class="field-head"><label for="ringWidth" id="ringWidth-label" data-i18n="ring.width">Ringbreite</label><output for="ringWidth" id="ringWidth-out"></output></div>
         <input type="range" id="ringWidth" min="8" max="32" step="1" data-unit="pct">
       </div>
       <div class="field">
