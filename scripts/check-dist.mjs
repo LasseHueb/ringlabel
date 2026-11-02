@@ -10,7 +10,11 @@
  *   - Impressum und Datenschutz ohne Platzhalter oder [eckige Klammern]
  *   - keine Skripte, Styles, Schriften oder Bilder von fremden Servern (die Datenschutzerklärung schließt das aus)
  *   - Vorlagen (js/presets.js): keine an bekannte Netzwerk-Rahmen angelehnte Gestaltung (grüner oder lila Bogen unten/links
- *     mit heller Hashtag-Schrift in Großbuchstaben), Texte ohne Netzwerk-Begriffe, gültige Zeitfenster bei Anlässen
+ *     mit heller Hashtag-Schrift in Großbuchstaben), Texte ohne Netzwerk-Begriffe, gültige Zeitfenster bei Anlässen;
+ *     Banner-Vorlagen (js/banner-model.js) mit gültigen Werten
+ *   - Rahmen- und Banner-Seite laden nur ihre eigenen Skripte und Stile; beide Werkzeug-Seiten je Sprache mit
+ *     Canonical und hreflang (de, en, x-default)
+ *   - Übersetzungen (js/i18n*.js) auf Deutsch und Englisch vollständig
  * Aufruf: node scripts/check-dist.mjs   (Exit-Code 1 bei Fehlern)
  */
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
@@ -125,13 +129,47 @@ for (const f of files.filter((f) => /\.(html|css)$/.test(f))) {
   }
 }
 
+// ---------- Jede Werkzeug-Seite lädt nur, was sie braucht; Canonical und hreflang ----------
+{
+  const tools = {
+    frame: { pages: ["index.html", "en/index.html"], forbidden: ["js/banner.js", "js/banner-model.js", "js/i18n-banner.js", "css/banner.css"] },
+    banner: { pages: ["banner/index.html", "en/banner/index.html"], forbidden: ["js/app.js", "js/renderer.js", "js/batch.js", "js/zip.js", "js/i18n-frame.js", "css/frame.css"] }
+  };
+  for (const [tool, { pages, forbidden }] of Object.entries(tools)) {
+    for (const pg of pages) {
+      const f = join(dist, pg);
+      if (!existsSync(f)) { errors.push(`Seite fehlt: ${pg}`); continue; }
+      const s = readFileSync(f, "utf8");
+      for (const x of forbidden) if (s.includes(`${basePath}/${x}`)) errors.push(`${pg} (${tool}) lädt ${x}`);
+      if (!/<link rel="canonical"/.test(s)) errors.push(`${pg}: Canonical fehlt`);
+      for (const l of ["de", "en", "x-default"]) if (!s.includes(`hreflang="${l}"`)) errors.push(`${pg}: hreflang „${l}“ fehlt`);
+    }
+  }
+}
+
+// ---------- Übersetzungen vollständig (Deutsch und Englisch) ----------
+{
+  const box = { location: { hostname: "", search: "" }, document: { documentElement: { lang: "de" }, querySelectorAll: () => [] } };
+  box.window = box;
+  for (const f of ["i18n.js", "i18n-frame.js", "i18n-banner.js"]) {
+    try { vm.runInNewContext(readFileSync(join(dist, "js", f), "utf8"), box); } catch (e) { errors.push(`js/${f} lässt sich nicht laden: ${e.message}`); }
+  }
+  const I = (box.PBG && box.PBG.I18N) || {};
+  const de = Object.keys(I.de || {}), en = Object.keys(I.en || {});
+  for (const k of de) if (!(k in (I.en || {}))) errors.push(`Übersetzung fehlt (en): ${k}`);
+  for (const k of en) if (!(k in (I.de || {}))) errors.push(`Übersetzung fehlt (de): ${k}`);
+  if (!de.length) errors.push("Übersetzungen nicht gefunden (js/i18n.js)");
+}
+
 // ---------- Vorlagen: keine Netzwerk-Rahmen-Optik, gültige Anlass-Zeitfenster ----------
 {
   const box = { location: { hostname: "", search: "" } };
   box.window = box;
   box.PBG = { lang: "de", loc: (o) => (o && typeof o === "object" ? o.de : o) || "" };
-  vm.runInNewContext(readFileSync(join(dist, "js/presets.js"), "utf8"), box);
+  // presets.js (Rahmen-Vorlagen), icons.js und banner-model.js (Banner-Vorlagen, nur auf der Banner-Seite geladen)
+  for (const f of ["presets.js", "icons.js", "banner-model.js"]) vm.runInNewContext(readFileSync(join(dist, "js", f), "utf8"), box);
   const P = box.PBG;
+  if (!(P.BANNER_PRESETS || []).length) errors.push("Banner-Vorlagen fehlen (js/banner-model.js)");
   const hsl = (hex) => {
     const n = parseInt(hex.slice(1), 16), r = (n >> 16 & 255) / 255, g = (n >> 8 & 255) / 255, b = (n & 255) / 255;
     const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2, d = max - min;
@@ -148,6 +186,8 @@ for (const f of files.filter((f) => /\.(html|css)$/.test(f))) {
       const m = text.match(networkTerms);
       if (m) errors.push(`Banner-Vorlage „${bp.key}“ (${lang}): Netzwerk-Begriff „${m[0]}“`);
     }
+    const vb = P.validateBanner(bp.values);
+    if (vb.dropped.length) errors.push(`Banner-Vorlage „${bp.key}“: ungültige Werte ${vb.dropped.join(", ")}`);
     if (bp.occasionOf && !(P.presetByKey(bp.occasionOf) || {}).occasion) errors.push(`Banner-Vorlage „${bp.key}“: Anlass „${bp.occasionOf}“ fehlt`);
   }
   for (const p of P.PRESETS) {
