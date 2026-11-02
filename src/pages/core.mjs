@@ -1,5 +1,5 @@
 /* Startseite je Sprache (/ und /en/): Überschrift, Einleitung, Datenschutz-Hinweis, Editor, Text-Ideen und FAQ. */
-import { esc, fill, editor, page, privacyNote, trustRow, faqSection, faqJsonLd, webAppJsonLd, ui } from "../layout.mjs";
+import { esc, fill, editor, banner, page, privacyNote, trustRow, faqSection, faqJsonLd, webAppJsonLd, ui } from "../layout.mjs";
 import { locales, languages } from "../content.mjs";
 
 function ideasSection(ctx, ideas, lang) {
@@ -47,6 +47,7 @@ export default function pages(ctx) {
   </div>
   ${privacyNote(lang)}
   ${editor(ctx, lang)}
+  ${banner(ctx, lang)}
   ${ideasSection(ctx, home.ideas, lang)}
   ${faqSection(ctx, home.faq, ui(lang).faqHeading)}`
       })

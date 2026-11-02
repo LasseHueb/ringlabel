@@ -443,6 +443,18 @@ a:hover { color: var(--accent-hover); }
 .text-button { background: none; border: 0; padding: 0; font: inherit; font-weight: 800; color: var(--accent); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
 .editor { padding-top: 12px; }
 
+/* Profil-Banner */
+.banner .lead-small { color: var(--muted); max-width: 820px; margin: 0 0 14px; }
+.banner-stage { border-radius: var(--radius); overflow: hidden; box-shadow: 0 6px 24px rgba(0, 0, 0, .14); background: var(--surface-2); }
+.banner-stage canvas { display: block; width: 100%; height: auto; aspect-ratio: 4 / 1; touch-action: none; }
+.banner-stage canvas.dragging { cursor: grabbing; }
+.banner-stage canvas:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.banner-safe-hint { margin: 10px 0 0; }
+.banner-controls { display: grid; gap: 16px; margin-top: 16px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); align-items: start; }
+.banner-controls .panel { margin: 0; }
+.segmented-col { display: flex; flex-direction: column; align-items: stretch; }
+.segmented-col label { justify-content: flex-start; }
+
 /* Hinweis nach dem Öffnen eines Design-Links */
 .link-notice {
   display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between;
