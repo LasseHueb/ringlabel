@@ -9,6 +9,8 @@
  *   - nirgends „Premium“, „PRO“ oder „Stripe“ (alles ist kostenlos) und kein Hinweis „Erstellt mit“ im Bild; kein supabase.js
  *   - Impressum und Datenschutz ohne Platzhalter oder [eckige Klammern]
  *   - keine Skripte, Styles, Schriften oder Bilder von fremden Servern (die Datenschutzerklärung schließt das aus)
+ *   - Vorlagen (js/presets.js): keine an bekannte Netzwerk-Rahmen angelehnte Gestaltung (grüner oder lila Bogen unten/links
+ *     mit heller Hashtag-Schrift in Großbuchstaben), Texte ohne Netzwerk-Begriffe, gültige Zeitfenster bei Anlässen
  * Aufruf: node scripts/check-dist.mjs   (Exit-Code 1 bei Fehlern)
  */
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
@@ -120,6 +122,47 @@ for (const f of files.filter((f) => /\.(html|css)$/.test(f))) {
   ].filter(Boolean);
   for (const u of res) {
     if ((/^(https?:)?\/\//.test(u)) && !u.startsWith(siteUrl + "/")) errors.push(`Ressource von fremdem Server in ${rel(f)}: ${u}`);
+  }
+}
+
+// ---------- Vorlagen: keine Netzwerk-Rahmen-Optik, gültige Anlass-Zeitfenster ----------
+{
+  const box = { location: { hostname: "", search: "" } };
+  box.window = box;
+  box.PBG = { lang: "de", loc: (o) => (o && typeof o === "object" ? o.de : o) || "" };
+  vm.runInNewContext(readFileSync(join(dist, "js/presets.js"), "utf8"), box);
+  const P = box.PBG;
+  const hsl = (hex) => {
+    const n = parseInt(hex.slice(1), 16), r = (n >> 16 & 255) / 255, g = (n >> 8 & 255) / 255, b = (n & 255) / 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2, d = max - min;
+    if (!d) return [0, 0, l];
+    const s = d / (1 - Math.abs(2 * l - 1));
+    let h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    return [(h * 60 + 360) % 360, s, l];
+  };
+  const greenOrPurple = (hex) => { const [h, s, l] = hsl(hex); return s > 0.2 && l > 0.08 && l < 0.85 && ((h >= 80 && h <= 170) || (h >= 255 && h <= 320)); };
+  for (const p of P.PRESETS) {
+    const v = Object.assign({}, P.DEFAULTS, p.values);
+    for (const lang of ["de", "en"]) {
+      const text = ((p.text && p.text[lang]) || "") + " " + ((p.textTop && p.textTop[lang]) || "") + " " + ((p.name && p.name[lang]) || "");
+      const m = text.match(networkTerms);
+      if (m) errors.push(`Vorlage „${p.key}“ (${lang}): Netzwerk-Begriff „${m[0]}“`);
+      const main = (p.text && p.text[lang]) || "";
+      const hashtagCaps = /^\s*#/.test(main) && (v.uppercase || main === main.toUpperCase());
+      const light = hsl(v.textColor)[2] > 0.8;
+      const colors = [v.ringColor].concat(v.gradient ? [v.ringColor2] : []);
+      if (v.shape !== "badge" && v.ringRotation >= -10 && hashtagCaps && light && colors.some(greenOrPurple)) {
+        errors.push(`Vorlage „${p.key}“ (${lang}): grüner/lila Bogen unten mit heller Hashtag-Schrift in Großbuchstaben – zu nah an Netzwerk-Rahmen`);
+      }
+    }
+    if (p.occasion) {
+      const ok = Array.isArray(p.occasion) && p.occasion.length && p.occasion.every((w) => {
+        const parts = String(w).split("/");
+        const valid = (x) => /^easter([+-]\d{1,3})?$/.test(x) || (/^(\d{2})-(\d{2})$/.test(x) && +x.slice(0, 2) >= 1 && +x.slice(0, 2) <= 12 && +x.slice(3) >= 1 && +x.slice(3) <= 31);
+        return parts.length === 2 && parts.every(valid);
+      });
+      if (!ok) errors.push(`Vorlage „${p.key}“: ungültiges Zeitfenster ${JSON.stringify(p.occasion)} (erwartet z. B. "12-01/12-26" oder "easter-14/easter+1")`);
+    }
   }
 }
 
