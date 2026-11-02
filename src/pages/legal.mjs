@@ -32,7 +32,7 @@ export default function pages(ctx) {
     <p>E-Mail: ${mail}</p>
     <h2>Hinweis</h2>
     <p>${app} ist ein privates, nicht-kommerzielles Projekt. Die Nutzung ist kostenlos, es werden keine Waren oder Dienstleistungen verkauft.</p>
-    <p>${independenceNote(ctx)}</p>
+    ${independenceNote(ctx)}
     <h2>Haftung für Links</h2>
     <p>Diese Website enthält Links zu externen Websites Dritter, auf deren Inhalte ich keinen Einfluss habe. Für diese Inhalte ist der jeweilige Anbieter verantwortlich. Bei Bekanntwerden von Rechtsverletzungen entferne ich solche Links umgehend.</p>`;
 

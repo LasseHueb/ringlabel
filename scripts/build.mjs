@@ -26,7 +26,7 @@ set(cfg, "basePath", env.BASE_PATH);
 cfg.siteUrl = cfg.siteUrl.replace(/\/+$/, "");
 cfg.basePath = (cfg.basePath || "").replace(/\/+$/, "");
 
-const { home } = await import(pathToFileURL(join(root, "src/content.mjs")).href);
+const { home, locales, languages } = await import(pathToFileURL(join(root, "src/content.mjs")).href);
 
 // Cache-Busting: Hash über alle CSS/JS-Dateien
 const hash = createHash("sha1");
@@ -69,12 +69,13 @@ for (const file of pageModules) {
   }
 }
 
-// Sitemap: nur indexierbare Seiten
+// Sitemap: nur indexierbare Seiten; Sprachversionen mit ihren hreflang-Alternativen
 const today = new Date().toISOString().slice(0, 10);
 const sitemapPages = allPages.filter((p) => p.sitemap !== false && !/noindex/.test(p.html.slice(0, 2000)));
+const altLinks = (p) => (p.alternates || []).map(([hl, path]) => `<xhtml:link rel="alternate" hreflang="${hl}" href="${ctx.abs(path)}"/>`).join("");
 writeFileSync(join(dist, "sitemap.xml"), `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${sitemapPages.map((p) => `  <url><loc>${ctx.abs(p.path)}</loc><lastmod>${today}</lastmod>${p.priority ? `<priority>${p.priority}</priority>` : ""}</url>`).join("\n")}
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+${sitemapPages.map((p) => `  <url><loc>${ctx.abs(p.path)}</loc><lastmod>${today}</lastmod>${p.priority ? `<priority>${p.priority}</priority>` : ""}${altLinks(p)}</url>`).join("\n")}
 </urlset>
 `);
 
@@ -101,6 +102,8 @@ writeFileSync(join(dist, "manifest.webmanifest"), JSON.stringify({
 // 404-Seite. GitHub Pages kennt keine Server-Weiterleitungen, deshalb leitet ein Skript frühere Adressen
 // (Landingpages, Vorlagen-Seiten, Bezahl- und Firmen-Seiten) auf die Startseite um.
 // /rahmen/<name>/ und /vorlage/<name>/ öffnen dabei die gleichnamige Vorlage (?vorlage=<name>).
+// Unbekannte Pfade unter einer Sprachversion (z. B. /en/irgendwas) landen auf deren Startseite (/en/).
+const langPrefixes = languages.map((l) => locales[l].path).filter((p) => p !== "/").map((p) => p.replace(/^\/|\/$/g, ""));
 writeFileSync(join(dist, "404.html"), `<!doctype html>
 <html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Seite nicht gefunden | ${cfg.appName}</title><meta name="robots" content="noindex">
@@ -109,6 +112,9 @@ writeFileSync(join(dist, "404.html"), `<!doctype html>
     var base = ${JSON.stringify(cfg.basePath)};
     var path = location.pathname;
     if (path.indexOf(base + "/") !== 0) return;
+    var langs = ${JSON.stringify(langPrefixes)};
+    var l = path.slice(base.length).match(/^\\/([a-z-]+)(?=\\/|$)/);
+    if (l && langs.indexOf(l[1]) >= 0) { location.replace(base + "/" + l[1] + "/"); return; }
     var m = path.slice(base.length).match(/^\\/(rahmen|vorlage|premium|unternehmen|admin|team)(?=\\/|$)(?:\\/([a-z0-9-]*))?/);
     if (!m) return;
     var preset = (m[1] === "rahmen" || m[1] === "vorlage") && m[2] ? "?vorlage=" + m[2] : "";
