@@ -11,6 +11,7 @@ Live: <https://lassehueb.github.io/ringlabel/>
 | Bereich | Was es gibt |
 |---|---|
 | **Editor** | Foto laden (JPG, PNG, WebP, HEIC), Zuschnitt per Ziehen/Zoomen, gebogener Text, alle Schriften, Farben und Farbverläufe, Symbole und Emojis im Ring, Ringbreite/-länge/-drehung, Live-Vorschau |
+| **Mehrere Fotos** | Abschnitt `#mehrere-fotos` (einklappbar): aktuelles Design auf bis zu 30 Fotos anwenden, eigener Text pro Foto, Ausschnitt einzeln anpassen, alle als ZIP (1080 oder 2048 px) – nur im Browser |
 | **Profil-Banner** | Abschnitt `#banner` unter dem Editor: breites Banner (4:1, 3:1, 16:9) mit Farben, Schrift und Logo des Rahmens, Überschrift, Unterzeile, Ausrichtung, Muster oder eigenem Hintergrundbild; markierter Bereich für das Profilbild; PNG in voller Größe |
 | **Formen** | „Bogen“ (Standard), „Voller Ring“ (geschlossen rund um das Foto) und „Badge“ (abgerundetes Schild unten, Text gerade); bei Bogen und vollem Ring optional ein zweiter „Text oben“ |
 | **Anlässe** | 8 Vorlagen für Feiertage und besondere Momente (Weihnachten, Jahreswechsel, Ostern, Ausbildungsbeginn, Ausbildung geschafft, Messe & Events, Neues Jahr im Job, Sommerpause); im passenden Zeitfenster oben unter „Gerade passend“ |
@@ -24,6 +25,19 @@ Live: <https://lassehueb.github.io/ringlabel/>
 | **Recht** | Impressum und Datenschutzerklärung (Angaben in `config/site.json` → `legal`, nur auf Deutsch), Unabhängigkeitshinweis im Footer |
 
 Frühere Adressen (`/rahmen/…`, `/vorlage/…`, `/premium/`, `/unternehmen/`, `/admin/`, `/team/`) leiten über die `404.html` auf die Startseite weiter; `/rahmen/<name>/` und `/vorlage/<name>/` öffnen dabei die gleichnamige Vorlage. Unbekannte Pfade unter `/en/` landen auf `/en/`.
+
+## Mehrere Fotos
+
+Zwischen Editor und Profil-Banner (Sprungmarke `#mehrere-fotos`, öffnet den eingeklappten Bereich) lässt sich das aktuelle Rahmen-Design auf bis zu 30 Fotos gleichzeitig anwenden. Code: `public/js/batch.js`, ZIP-Schreiber: `public/js/zip.js`, Markup: `src/partials/batch.html` (die Leiste „Ausschnitt anpassen“ steht in `src/partials/editor.html`).
+
+- **Fotos:** JPG, PNG, WebP oder HEIC wie beim Einzelfoto (gleicher Lade-Code über `PBG.editor.decodeFile`), auswählen oder hineinziehen; mehr als 30 und Nicht-Bilder werden mit Hinweis abgelehnt.
+- **Design:** Form, Text, Text oben, Logo, Farben und Hintergrund kommen aus dem Editor; ändert sich etwas, werden alle Vorschauen gedrosselt neu gezeichnet (nur bei echter Design-Änderung, wenige pro Frame).
+- **Eigener Text pro Foto** (höchstens 60 Zeichen, z. B. ein Name); leer = Haupttext (steht als Platzhalter im Feld). Bei Logo „Statt Text“ ist das Feld ausgeblendet.
+- **Ausschnitt:** automatisch zentriert. „Ausschnitt anpassen“ lädt das Foto in den normalen Editor (mit seinem eigenen Text in der Vorschau); „Übernehmen“ speichert den neuen Ausschnitt, „Abbrechen“ lässt ihn unverändert. Das vorher geladene Einzelfoto samt Ausschnitt kommt in beiden Fällen zurück.
+- **ZIP:** „Alle als ZIP herunterladen“ rendert nacheinander in 1080 oder 2048 px (Hintergrund wie unter „6. Export“), mit Fortschritt („3 von 10“, für Screenreader angesagt) und Abbrechen. Datei `ringlabel-rahmen.zip` (Englisch `ringlabel-frames.zip`); Bilder `<Originalname>-rahmen.png` (`-frame.png`), Namen in Unicode-NFC, unzulässige Zeichen (`\ / : * ? " < > |`, Steuerzeichen) durch `-` ersetzt, Dubletten ohne Rücksicht auf Groß-/Kleinschreibung durchnummeriert (`team-rahmen.png`, `team-rahmen-2.png`).
+- **ZIP-Format:** selbst geschrieben, Methode „stored“ (unkomprimiert, PNGs sind schon komprimiert), CRC32, Dateinamen UTF-8 mit Flag-Bit 11; kein ZIP64 (bis 4 GB / 65 535 Dateien).
+- **Speicher:** Fotos werden beim Laden einzeln dekodiert, auf höchstens 2048 px verkleinert und komprimiert als Blob gehalten (JPEG, PNG-Dateien als PNG), dazu nur eine 320-px-Vorschauquelle; Canvas werden nach dem Rendern auf Größe 0 gesetzt. Gemessen (Chromium, 30 Fotos à 4000 × 3000 px): gehaltene Fotodaten 16 MB; der Seitenprozess belegt nach Speicherbereinigung rund 60 MB mehr als ohne Fotos.
+- **Datenschutz:** Die Fotos werden nie gespeichert – nicht im lokalen Speicher, nicht in eigenen Vorlagen, nicht in Design-Links – und beim Schließen oder Neuladen der Seite verworfen.
 
 ## Profil-Banner
 
@@ -123,6 +137,8 @@ public/                   Statische Dateien, werden 1:1 ausgeliefert
   js/renderer.js          Canvas-Rendering (Foto, Ring, gebogener Text, Symbole, Logo)
   js/app.js               Editor-Logik, Logo, eigene Vorlagen, Teilen-Dialog
   js/banner.js            Profil-Banner (Renderer, Bedienung, Download)
+  js/batch.js             Mehrere Fotos (Liste, Vorschauen, Ausschnitt, ZIP-Export)
+  js/zip.js               ZIP-Schreiber („stored“, CRC32, UTF-8-Dateinamen)
   js/platform.js          Konfiguration, lokaler Speicher, Farbschema
   js/presets.js           Schriften, Standardwerte, Vorlagen
   js/icons.js             Symbole und Emojis für den Ring
@@ -133,6 +149,7 @@ src/
   layout.mjs              Seitenlayout, Meta-Tags, strukturierte Daten, Unabhängigkeitshinweis
   partials/editor.html    Editor-Markup
   partials/banner.html    Markup des Profil-Banners
+  partials/batch.html     Markup von „Mehrere Fotos“
   pages/core.mjs          Startseiten (/ und /en/)
   pages/legal.mjs         Impressum und Datenschutzerklärung
 scripts/
