@@ -11,6 +11,7 @@ Live: <https://lassehueb.github.io/ringlabel/>
 | Bereich | Was es gibt |
 |---|---|
 | **Editor** | Foto laden (JPG, PNG, WebP, HEIC), Zuschnitt per Ziehen/Zoomen, gebogener Text, alle Schriften, Farben und Farbverläufe, Symbole und Emojis im Ring, Ringbreite/-länge/-drehung, Live-Vorschau |
+| **Profil-Banner** | Abschnitt `#banner` unter dem Editor: breites Banner (4:1, 3:1, 16:9) mit Farben, Schrift und Logo des Rahmens, Überschrift, Unterzeile, Ausrichtung, Muster oder eigenem Hintergrundbild; markierter Bereich für das Profilbild; PNG in voller Größe |
 | **Formen** | „Bogen“ (Standard), „Voller Ring“ (geschlossen rund um das Foto) und „Badge“ (abgerundetes Schild unten, Text gerade); bei Bogen und vollem Ring optional ein zweiter „Text oben“ |
 | **Anlässe** | 8 Vorlagen für Feiertage und besondere Momente (Weihnachten, Jahreswechsel, Ostern, Ausbildungsbeginn, Ausbildung geschafft, Messe & Events, Neues Jahr im Job, Sommerpause); im passenden Zeitfenster oben unter „Gerade passend“ |
 | **Vorlagen** | 34 mitgelieferte Vorlagen, dazu Ideen für Jobsuche, Recruiting, Selbstständige und Firmen mit „Vorlage übernehmen“ |
@@ -23,6 +24,22 @@ Live: <https://lassehueb.github.io/ringlabel/>
 | **Recht** | Impressum und Datenschutzerklärung (Angaben in `config/site.json` → `legal`, nur auf Deutsch), Unabhängigkeitshinweis im Footer |
 
 Frühere Adressen (`/rahmen/…`, `/vorlage/…`, `/premium/`, `/unternehmen/`, `/admin/`, `/team/`) leiten über die `404.html` auf die Startseite weiter; `/rahmen/<name>/` und `/vorlage/<name>/` öffnen dabei die gleichnamige Vorlage. Unbekannte Pfade unter `/en/` landen auf `/en/`.
+
+## Profil-Banner
+
+Unter dem Rahmen-Editor (Sprungmarke `#banner`, keine eigene Unterseite) entsteht ein breites Banner im Design des aktuellen Rahmens. Code: `public/js/banner.js`, Markup: `src/partials/banner.html`, Formate und Prüfung: `public/js/presets.js`.
+
+| Format | Größe |
+|---|---|
+| Breit 4:1 | 1584 × 396 px |
+| Breit 3:1 | 1500 × 500 px |
+| 16:9 | 1920 × 1080 px |
+
+- **Aus dem Rahmen übernommen:** Ringfarbe und Verlauf (als Hintergrund), Schrift (Überschrift fett, wenn „Fett“ an ist), Textfarbe und Logo. Hebt sich die Textfarbe nicht genug von beiden Hintergrundfarben ab (Kontrast unter 3:1), nimmt das Banner Weiß oder fast Schwarz und zeigt einen Hinweis. Eine leere Überschrift zeigt den Text des Rahmens.
+- **Felder:** Überschrift (höchstens 60 Zeichen, eine Zeile, wird bei Bedarf verkleinert), Unterzeile (höchstens 100 Zeichen, bis zu zwei Zeilen), Ausrichtung links / mittig / rechts.
+- **Hintergrund:** Farbe bzw. Verlauf, drei selbst gezeichnete Muster (Punkte, Linien, Wellen) oder ein eigenes Bild (JPG, PNG, WebP; nur im Browser, auf höchstens 4000 px verkleinert, Zoom und Verschieben per Ziehen, Mausrad oder Pfeiltasten, mit Farbschleier auf der Textseite).
+- **Bereich, den das Profilbild verdecken kann:** links unten, je Format in `PBG.BANNER_FORMATS[…].safe` (Anteil der Breite, Beginn in der Höhe). Er ist in der Vorschau schraffiert, aber nie im Download. Bei Ausrichtung „links“ beginnen Text und Logo rechts davon; bei „rechts“ reicht der Text nicht hinein.
+- **Speichern:** „Als eigene Vorlage speichern“ und der Datei-Export speichern zusätzlich ein optionales Objekt `banner` (`format`, `title`, `subtitle`, `align`, `bg` – Werte siehe `PBG.BANNER_CHOICES`/`PBG.BANNER_MAX`). Ein Hintergrundbild wird nie gespeichert. Ältere Vorlagen ohne `banner` bleiben gültig und lassen das aktuelle Banner unverändert; beim Import werden ungültige Banner-Werte verworfen und gemeldet. Der Design-Link (`#d=…`) enthält keine Banner-Einstellungen.
 
 ## Anlässe und „Gerade passend“
 
@@ -105,6 +122,7 @@ config/site.json          Name, Adresse, Angaben für Impressum/Datenschutz
 public/                   Statische Dateien, werden 1:1 ausgeliefert
   js/renderer.js          Canvas-Rendering (Foto, Ring, gebogener Text, Symbole, Logo)
   js/app.js               Editor-Logik, Logo, eigene Vorlagen, Teilen-Dialog
+  js/banner.js            Profil-Banner (Renderer, Bedienung, Download)
   js/platform.js          Konfiguration, lokaler Speicher, Farbschema
   js/presets.js           Schriften, Standardwerte, Vorlagen
   js/icons.js             Symbole und Emojis für den Ring
@@ -114,6 +132,7 @@ src/
   content.mjs             Texte der Startseiten je Sprache (Title, Einleitung, Ideen, FAQ, Header/Footer)
   layout.mjs              Seitenlayout, Meta-Tags, strukturierte Daten, Unabhängigkeitshinweis
   partials/editor.html    Editor-Markup
+  partials/banner.html    Markup des Profil-Banners
   pages/core.mjs          Startseiten (/ und /en/)
   pages/legal.mjs         Impressum und Datenschutzerklärung
 scripts/
