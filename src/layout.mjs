@@ -11,6 +11,7 @@ import { locales, languages } from "./content.mjs";
 const here = dirname(fileURLToPath(import.meta.url));
 const editorHtml = readFileSync(join(here, "partials/editor.html"), "utf8");
 const bannerHtml = readFileSync(join(here, "partials/banner.html"), "utf8");
+const batchHtml = readFileSync(join(here, "partials/batch.html"), "utf8");
 
 /** Editor-Wörterbücher aus public/js/i18n.js (dieselbe Datei, die der Browser lädt). */
 const i18n = (() => {
@@ -55,6 +56,11 @@ export function editor(ctx, lang = "de") {
   return localize(ctx, editorHtml, lang);
 }
 
+/** „Mehrere Fotos“ (partials/batch.html) in der Sprache lang – übersetzt wie der Editor. */
+export function batch(ctx, lang = "de") {
+  return localize(ctx, batchHtml, lang);
+}
+
 /** Profil-Banner (partials/banner.html) in der Sprache lang – übersetzt wie der Editor. */
 export function banner(ctx, lang = "de") {
   return localize(ctx, bannerHtml, lang);
@@ -75,6 +81,7 @@ function localize(ctx, source, lang) {
   html = html.replace(/<[^>]*\sdata-i18n-placeholder="([^"]+)"[^>]*>/g, (tag, key) => tag.replace(/>$/, ` placeholder="${tr(key)}">`));
   // Beschriftung der Download-Buttons setzen app.js und banner.js; hier nur der Startwert
   html = html.replace(/(<span id="download-label">)[^<]*/, (m, open) => open + tr("export.download").replace("{size}", "1080"));
+  html = html.replace(/(<span id="batch-zip-label">)[^<]*/, (m, open) => open + tr("batch.download").replace("{size}", "1080"));
   html = html.replace(/(<span id="banner-download-label">)[^<]*/, (m, open) => open + tr("banner.download").replace("{w}", "1584").replace("{h}", "396"));
   html = html.replace(/(<canvas id="banner-preview"[^>]*aria-label=")[^"]*/, (m, open) => open + tr("banner.canvasLabel").replace("{w}", "1584").replace("{h}", "396"));
   const left = html.match(/data-i18n="[^"]+"[^>]*>[^<]*[äöüÄÖÜß][^<]*</);
@@ -199,7 +206,7 @@ export function page(ctx, opts) {
   const og = ctx.abs(opts.og || "/img/og/default.jpg");
   const ld = (opts.jsonLd || []).map((d) => `<script type="application/ld+json">${JSON.stringify(d).replace(/</g, "\\u003c")}</script>`).join("\n  ");
   const editorScripts = opts.editor
-    ? ["/js/i18n.js", "/js/presets.js", "/js/icons.js", "/js/renderer.js", "/js/platform.js", "/js/app.js", "/js/banner.js"]
+    ? ["/js/i18n.js", "/js/presets.js", "/js/icons.js", "/js/renderer.js", "/js/platform.js", "/js/app.js", "/js/zip.js", "/js/batch.js", "/js/banner.js"]
     : ["/js/i18n.js", "/js/platform.js"];
   const scripts = ["/js/config.js", ...editorScripts, ...(opts.scripts || [])];
   const ver = ctx.version;
