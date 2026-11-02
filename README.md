@@ -11,7 +11,8 @@ Live: <https://lassehueb.github.io/ringlabel/>
 | Bereich | Was es gibt |
 |---|---|
 | **Editor** | Foto laden (JPG, PNG, WebP, HEIC), Zuschnitt per Ziehen/Zoomen, gebogener Text, alle Schriften, Farben und Farbverläufe, Symbole und Emojis im Ring, Ringbreite/-länge/-drehung, Live-Vorschau |
-| **Vorlagen** | 32 mitgelieferte Vorlagen, dazu Ideen für Jobsuche, Recruiting, Selbstständige und Firmen mit „Vorlage übernehmen“ |
+| **Formen** | „Bogen“ (Standard), „Voller Ring“ (geschlossen rund um das Foto) und „Badge“ (abgerundetes Schild unten, Text gerade); bei Bogen und vollem Ring optional ein zweiter „Text oben“ |
+| **Vorlagen** | 35 mitgelieferte Vorlagen, dazu Ideen für Jobsuche, Recruiting, Selbstständige und Firmen mit „Vorlage übernehmen“ |
 | **Logo** | PNG, JPG, WebP oder SVG, auf höchstens 512 px verkleinert; links vom Text, rechts vom Text oder statt Text; Größe einstellbar |
 | **Design als Link** | „Link zu diesem Design kopieren“ im Vorlagen-Bereich und bei jeder eigenen Vorlage; wer den Link öffnet, hat sofort denselben Rahmen im Editor (ohne Foto und Logo) |
 | **Eigene Vorlagen** | „Als eigene Vorlage speichern“ (alle Design-Einstellungen und Logo, nie das Foto) im lokalen Speicher des Browsers; umbenennen, löschen, als JSON-Datei exportieren und importieren (streng geprüft, höchstens 1 MB) |
@@ -21,6 +22,19 @@ Live: <https://lassehueb.github.io/ringlabel/>
 | **Recht** | Impressum und Datenschutzerklärung (Angaben in `config/site.json` → `legal`, nur auf Deutsch), Unabhängigkeitshinweis im Footer |
 
 Frühere Adressen (`/rahmen/…`, `/vorlage/…`, `/premium/`, `/unternehmen/`, `/admin/`, `/team/`) leiten über die `404.html` auf die Startseite weiter; `/rahmen/<name>/` und `/vorlage/<name>/` öffnen dabei die gleichnamige Vorlage. Unbekannte Pfade unter `/en/` landen auf `/en/`.
+
+## Formen und Text oben
+
+| Bogen mit Text oben | Voller Ring | Badge |
+|---|---|---|
+| ![Bogen mit Text oben](public/img/beispiele/neue-wege.png) | ![Voller Ring](public/img/beispiele/austausch.png) | ![Badge](public/img/beispiele/badge-neugierig.png) |
+
+- **Bogen** (`shape: "arc"`, Standard): wie bisher. Ein Text oben bekommt einen eigenen kurzen Bogen in Ringfarbe (bei Verlauf mit gespiegelten Farben) mit denselben weichen Enden (höchstens 30°).
+- **Voller Ring** (`shape: "ring"`): geschlossener Ring ohne weiche Enden; Ringlänge und weicher Übergang sind ausgeblendet. Ein Verlauf läuft von unten (Ringfarbe) nach oben (zweite Farbe). Die Drehung dreht Texte und Verlauf.
+- **Badge** (`shape: "badge"`): abgerundetes Schild unten mittig über dem Foto, Text gerade, Farbe und Deckkraft wie der Ring. Die Ringbreite heißt hier „Höhe des Badges“; Text oben, Position auf dem Bogen, Ringlänge, Drehung und weicher Übergang sind ausgeblendet. Das Logo sitzt links oder rechts im Schild oder allein darin.
+- **Text oben** (`textTop`, höchstens 40 Zeichen, `sizeTop` = eigene Schriftgröße in % der Ringbreite, Standard 60): läuft oben gebogen und ist von außen lesbar. Schrift, Farbe, Großbuchstaben und Buchstabenabstand wie beim Haupttext; Symbole, Emojis und Logo gehören zum Haupttext. Höchstens 150° lang; längere Texte werden wie der Haupttext verkleinert, mit Hinweis.
+- **Kompatibilität:** `shape`, `textTop` und `sizeTop` stehen in `PBG.DESIGN_KEYS` und werden in eigenen Vorlagen, im Datei-Export/-Import und im Design-Link gespeichert und beim Import streng geprüft. Ihre Standardwerte (`"arc"`, `""`, `60`) ergeben das bisherige Aussehen – ältere Vorlagen, Dateien und Links sehen unverändert aus (geprüft: 144 Designs pixelgleich mit dem vorigen Stand). Das Link-Format bleibt deshalb Version 1.
+- **Beispielbilder:** `npm run images` erzeugt neben OG-Bildern und Icons auch `public/img/beispiele/*.png` (für dieses README).
 
 ## Design als Link
 
