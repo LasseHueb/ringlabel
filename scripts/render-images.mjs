@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 /*
- * Erzeugt die Open-Graph-Bilder (JPEG 1200×630) für die Startseiten aller Sprachen und die Rechtsseiten sowie die
- * App-Icons mit dem echten Renderer im Browser. Ergebnis landet in public/img/ und wird eingecheckt.
+ * Erzeugt die Open-Graph-Bilder (JPEG 1200×630) für die Startseiten aller Sprachen und die Rechtsseiten, die App-Icons
+ * und Beispielbilder der Formen (Bogen mit Text oben, voller Ring, Badge; img/beispiele/, für das README)
+ * mit dem echten Renderer im Browser. Ergebnis landet in public/img/ und wird eingecheckt.
  * Texte (Titel, Untertitel, Badge) und Dateiname je Sprache stehen in src/content.mjs (h1, ogImage, og).
  *
  * Voraussetzung (einmalig, nur lokal):  npm i --no-save playwright && npx playwright install chromium
  * Aufruf:                               npm run images                         (alle Sprachen + Icons)
- *                                       node scripts/render-images.mjs en      (nur diese Sprache(n), ohne Icons; dist/ muss gebaut sein)
+ *                                       node scripts/render-images.mjs en      (nur diese Sprache(n), ohne Icons und Beispiele; dist/ muss gebaut sein)
  * Die Beispiel-„Fotos“ sind gezeichnete Illustrationen – keine echten Personen.
  */
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -89,7 +90,7 @@ await page.evaluate(() => {
     const p = PBG.presetByKey(key);
     const s = {};
     PBG.DESIGN_KEYS.forEach((k) => { s[k] = PBG.DEFAULTS[k]; });
-    return Object.assign(s, p.values, { text: PBG.loc(p.text), zoom: 1, offsetX: 0, offsetY: 0 });
+    return Object.assign(s, p.values, { text: PBG.loc(p.text), textTop: PBG.loc(p.textTop), zoom: 1, offsetX: 0, offsetY: 0 });
   };
   window.__ensureFonts = async (state) => {
     const f = PBG.fontById(state.font);
@@ -99,6 +100,7 @@ await page.evaluate(() => {
   window.__example = async (key, size, i) => {
     const s = window.__presetState(key);
     await window.__ensureFonts(s);
+    await document.fonts.load('400 40px "' + s.font + '"', s.text + s.textTop);
     const c = document.createElement("canvas");
     c.width = c.height = size;
     PBG.render(c.getContext("2d"), s, window.__avatar(size * 2, i), size, {});
@@ -154,6 +156,15 @@ for (const lang of langs) {
   // Standardbild der (deutschen) Rechtsseiten
   if (lang === "de") await og("og/default.jpg", "recruiting", loc.h1, loc.ogImage.subtitle, loc.ogImage.badge, 1);
   console.log(`✓ OG-Bild ${lang}: public/img/${file}`);
+}
+
+// Beispielbilder der Formen (nur beim Komplettlauf; deutsche Vorlagen-Texte)
+if (!only.length) {
+  await open("de");
+  for (const [key, n] of [["neue-wege", 2], ["austausch", 3], ["badge-neugierig", 4]]) {
+    save(`beispiele/${key}.png`, await page.evaluate(async ([k, n]) => (await window.__example(k, 540, n)).toDataURL("image/png"), [key, n]));
+  }
+  console.log("✓ Beispielbilder: public/img/beispiele/");
 }
 
 // App-Icons (nur beim Komplettlauf)
