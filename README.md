@@ -13,6 +13,7 @@ Live: <https://lassehueb.github.io/ringlabel/>
 | **Editor** | Foto laden (JPG, PNG, WebP, HEIC), Zuschnitt per Ziehen/Zoomen, gebogener Text, alle Schriften, Farben und Farbverläufe, Symbole und Emojis im Ring, Ringbreite/-länge/-drehung, Live-Vorschau |
 | **Vorlagen** | 32 mitgelieferte Vorlagen, dazu Ideen für Jobsuche, Recruiting, Selbstständige und Firmen mit „Vorlage übernehmen“ |
 | **Logo** | PNG, JPG, WebP oder SVG, auf höchstens 512 px verkleinert; links vom Text, rechts vom Text oder statt Text; Größe einstellbar |
+| **Design als Link** | „Link zu diesem Design kopieren“ im Vorlagen-Bereich und bei jeder eigenen Vorlage; wer den Link öffnet, hat sofort denselben Rahmen im Editor (ohne Foto und Logo) |
 | **Eigene Vorlagen** | „Als eigene Vorlage speichern“ (alle Design-Einstellungen und Logo, nie das Foto) im lokalen Speicher des Browsers; umbenennen, löschen, als JSON-Datei exportieren und importieren (streng geprüft, höchstens 1 MB) |
 | **Export** | PNG in 1080 × 1080 oder 2048 × 2048 px, Hintergrund transparent oder weiß, auf dem Handy direkt teilen |
 | **Teilen** | „Link kopieren“ und die Teilen-Funktion des Geräts – geteilt wird nur die Startseite |
@@ -20,6 +21,16 @@ Live: <https://lassehueb.github.io/ringlabel/>
 | **Recht** | Impressum und Datenschutzerklärung (Angaben in `config/site.json` → `legal`, nur auf Deutsch), Unabhängigkeitshinweis im Footer |
 
 Frühere Adressen (`/rahmen/…`, `/vorlage/…`, `/premium/`, `/unternehmen/`, `/admin/`, `/team/`) leiten über die `404.html` auf die Startseite weiter; `/rahmen/<name>/` und `/vorlage/<name>/` öffnen dabei die gleichnamige Vorlage. Unbekannte Pfade unter `/en/` landen auf `/en/`.
+
+## Design als Link
+
+Ein Design lässt sich als Link weitergeben, z. B. `https://ringlabel.de/#d=eyJ2IjoxLCJ0ZXh0Ijoi…` (auf `/en/` entsprechend `/en/#d=…`).
+
+- **Format:** `#d=` + Base64url (ohne `=`) von kompaktem JSON `{"v":1,"text":…,"font":…, …}` mit allen Schlüsseln aus `PBG.DESIGN_KEYS`. Foto und Logo sind nie enthalten; ist ein Logo gesetzt, weist der Dialog darauf hin.
+- **Version:** `v` ist die Formatversion (`LINK_VERSION` in `public/js/app.js`). Ändert sich das Format, bekommt es eine neue Nummer und `parseDesignLink` liest ältere Versionen weiter. Links mit unbekannter Version werden mit einer Meldung abgelehnt.
+- **Prüfung beim Öffnen:** dieselbe wie beim Datei-Import (`validValue`): nur bekannte Schlüssel, Zahlen im Bereich der Regler, Farben nur als `#rrggbb`, Text höchstens 60 Zeichen, nur vorhandene Schriften und Symbole. Ungültiges wird verworfen und in einer Meldung genannt; ist gar nichts gültig, zu lang (über 2000 Zeichen) oder kaputt, erscheint die Standardvorlage mit einem Hinweis.
+- **Datenschutz:** Der Teil nach `#` wird vom Browser nicht an den Server geschickt. Nach dem Laden entfernt `history.replaceState` das Fragment aus der Adresse, damit es nicht versehentlich weitergeteilt wird. Ein Link, der in einen schon offenen Tab eingefügt wird (nur das Fragment ändert sich), wird ebenfalls geladen.
+- **Vorrang:** `#d=…` gilt vor `?vorlage=…`; ohne Fragment funktioniert `?vorlage=<name>` wie bisher.
 
 ## Sprachversionen
 
