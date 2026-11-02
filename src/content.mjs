@@ -61,11 +61,11 @@ export const locales = {
     faq: [
       ["Ist {app} wirklich kostenlos?", "Ja, komplett. Alle Vorlagen, Schriften, Farbverläufe, Symbole, das eigene Logo und der Export bis 2048 × 2048 Pixel stehen allen zur Verfügung – ohne Anmeldung, ohne Abo und ohne versteckte Kosten."],
       ["Werden mein Foto oder mein Logo hochgeladen?", "Nein. Foto und Logo verlassen nie deinen Browser. Das Bild wird direkt auf deinem Gerät berechnet – es gibt keinen Upload, keine Speicherung auf einem Server und kein Konto."],
-      ["Wie nutze ich das Bild als Profilbild?", "Lade das PNG herunter und lade es in deinem Netzwerk oder Messenger als neues Profilbild hoch. Die meisten Plattformen schneiden das Bild automatisch rund zu – der Rahmen sitzt dann genau am Rand."],
+      ["Wie nutze ich das Bild als Profilbild?", "Lade das PNG herunter und lade es in deinem Netzwerk oder Messenger als neues Profilbild hoch. Die meisten Plattformen schneiden das Bild automatisch rund zu – der Rahmen sitzt dann genau am Rand. Der Editor läuft in jedem aktuellen Browser, auch auf dem Handy; dort kannst du das Bild direkt über „Bild teilen“ weitergeben."],
       ["Was schreibe ich auf den Rahmen?", "Bewährt haben sich kurze, konkrete Texte: deine Wunschrolle („Suche UX-Job“), deine Verfügbarkeit („Ab sofort verfügbar“), wen ihr sucht („Wir suchen Pflegekräfte“) oder dein Angebot. Bis zu 60 Zeichen sind möglich; ist der Text zu lang, wird er automatisch verkleinert."],
       ["Kann ich unser Firmenlogo einbinden?", "Ja. Lade dein Logo als PNG, JPG, WebP oder SVG hoch und setze es links oder rechts vom Text oder statt des Texts auf den Ring. Am besten wirkt ein Logo mit transparentem Hintergrund."],
       ["Kann das ganze Team denselben Rahmen nutzen?", "Ja. Speichere das Design als eigene Vorlage und exportiere sie als Datei. Kolleg:innen importieren die Datei, laden ihr eigenes Foto und erhalten denselben Rahmen – inklusive Logo."],
-      ["Funktioniert das auch auf dem Handy?", "Ja. Der Editor läuft in jedem aktuellen Browser auf iPhone, Android, Mac und PC. Auf dem Handy kannst du das Bild direkt über „Bild teilen“ weitergeben."],
+      ["Kann ich auch ein passendes Banner erstellen?", "Ja. Unter <a href=\"#banner\">Profil-Banner</a> erstellst du ein breites Banner in 4:1, 3:1 oder 16:9 – automatisch mit den Farben, der Schrift und dem Logo deines Rahmens. Ein markierter Bereich zeigt, wo dein Profilbild das Banner verdecken kann; ein eigenes Hintergrundbild bleibt dabei auf deinem Gerät."],
       ["Gehört {app} zu einem sozialen Netzwerk?", "Nein, {app} ist ein unabhängiges Werkzeug."]
     ],
 
@@ -145,11 +145,11 @@ export const locales = {
     faq: [
       ["Is {app} really free?", "Yes, completely. Every template, font, gradient and symbol, your own logo and exports up to 2048 × 2048 pixels are available to everyone – no sign-up, no subscription, no hidden costs."],
       ["Are my photo or logo uploaded?", "No. Your photo and logo never leave your browser. The image is rendered right on your device – there is no upload, no server storage and no account."],
-      ["How do I use the image as my profile picture?", "Download the PNG and upload it as your new profile picture on your network or messaging app. Most platforms crop it to a circle automatically, so the frame sits right at the edge."],
+      ["How do I use the image as my profile picture?", "Download the PNG and upload it as your new profile picture on your network or messaging app. Most platforms crop it to a circle automatically, so the frame sits right at the edge. The editor runs in any up-to-date browser, including on your phone, where you can pass the image on straight away with “Share image”."],
       ["What should I write on the frame?", "Short, specific phrases work best: the role you want (“Seeking UX role”), your availability (“Available now”), who you're looking for (“Nurses wanted”) or what you offer. Up to 60 characters fit; if the text is too long, it shrinks automatically."],
       ["Can I add our company logo?", "Yes. Upload your logo as PNG, JPG, WebP or SVG and place it to the left or right of the text, or instead of the text. A logo with a transparent background looks best."],
       ["Can the whole team use the same frame?", "Yes. Save the design as your own template and export it as a file. Colleagues import the file, add their own photo and get the exact same frame – logo included."],
-      ["Does it work on my phone?", "Yes. The editor runs in any up-to-date browser on iPhone, Android, Mac and PC. On your phone you can pass the image on straight away with “Share image”."],
+      ["Can I also create a matching banner?", "Yes. Under <a href=\"#banner\">Profile banner</a> you can create a wide banner in 4:1, 3:1 or 16:9 – automatically using the colours, font and logo of your frame. A marked area shows where your profile picture may cover the banner, and your own background image stays on your device."],
       ["Is {app} part of a social network?", "No, {app} is an independent tool."]
     ],
 
