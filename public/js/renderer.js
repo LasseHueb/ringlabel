@@ -4,6 +4,12 @@ window.PBG = window.PBG || {};
  * Zeichnet das komplette Profilbild (Foto + Ring + Text) auf einen Canvas beliebiger Größe.
  * Alle Größen sind relativ zur Kantenlänge, damit Vorschau, Miniatur und Export
  * pixelgenau gleich aussehen.
+ *
+ * Formen (state.shape):
+ *   "arc"   – Bogen (Standard, bisheriges Verhalten); optional zweiter Text oben auf eigenem kurzen Bogen
+ *   "ring"  – geschlossener Ring rund um das Foto, Text unten, optional zweiter Text oben
+ *   "badge" – abgerundetes Schild unten mittig über dem Foto, Text gerade; Farbe wie der Ring
+ * Der Text oben (state.textTop) ist von außen lesbar, hat eine eigene Größe (state.sizeTop) und nutzt Schrift und Farbe des Haupttexts.
  */
 (function () {
   var DEG = Math.PI / 180;
@@ -35,8 +41,8 @@ window.PBG = window.PBG || {};
     return str.replace(EMOJI_RE, function (c) { return KEEP_SYMBOLS.indexOf(c) >= 0 ? c : ""; });
   }
 
-  function prepareText(state) {
-    var text = state.text || "";
+  function prepareText(state, str) {
+    var text = (str === undefined ? state.text : str) || "";
     if (state.noEmoji) text = stripEmoji(text);
     text = text.replace(/\s+/g, " ").trim();
     if (state.uppercase) text = text.toLocaleUpperCase(PBG.lang || "de");
@@ -78,8 +84,58 @@ window.PBG = window.PBG || {};
     return Math.min(Math.max(iw / ih, 0.25), 6);
   }
 
+  /**
+   * Misst eine Abfolge aus Zeichen, Symbolen und Logo entlang einer Linie (Bogen oder gerade).
+   * Ergebnis: Versatz und Breite je Element, Gesamtlänge (total) und Winkel auf dem Radius r (angle).
+   */
+  function measureItems(ctx, state, items, fontPx, baseFont, logoH0, aspect, r) {
+    ctx.font = fontString(state, fontPx);
+    var spacing = fontPx * state.spacing / 100;
+    var symbolW = fontPx * 0.95;
+    var logoH = logoH0 * fontPx / baseFont;
+    var logoW = logoH * aspect;
+    var out = [];
+    var x = 0, end = 0;
+    var run = "", runStart = 0, runIdx = 0;
+    items.forEach(function (it) {
+      var w, start;
+      if (it.type === "char") {
+        // Breite über Präfixe messen, damit Kerning erhalten bleibt
+        run += it.value;
+        var prefix = ctx.measureText(run).width;
+        w = ctx.measureText(it.value).width;
+        start = runStart + prefix - w + runIdx * spacing;
+        runIdx++;
+      } else {
+        w = it.type === "icon" ? symbolW : it.type === "logo" ? logoW : fontPx * 0.25;
+        start = x;
+        run = ""; runIdx = 0;
+        runStart = start + w + spacing;
+      }
+      out.push({ item: it, offset: start, width: w, height: it.type === "logo" ? logoH : w });
+      end = start + w;
+      x = end + spacing;
+      if (it.type !== "char") runStart = x;
+    });
+    return { glyphs: out, total: end, angle: end / r, symbolW: symbolW, logoW: logoW, logoH: logoH };
+  }
+
+  /** Misst items mit baseFont; ist der Platz (available, im Maß von key: "angle" oder "total") zu klein, wird verkleinert. */
+  function fit(ctx, state, items, baseFont, logoH0, aspect, r, available, key, tolerance) {
+    var measure = function (px) { return measureItems(ctx, state, items, px, baseFont, logoH0, aspect, r); };
+    var scale = 1;
+    var m = measure(baseFont);
+    if (items.length && m[key] > available) {
+      scale = Math.max(available / m[key], MIN_TEXT_SCALE);
+      m = measure(baseFont * scale);
+    }
+    return { fontPx: baseFont * scale, scale: scale, metrics: m, available: available,
+      overflow: items.length > 0 && m[key] > available + tolerance };
+  }
+
   /** Berechnet Ring- und Textgeometrie (wird auch für die Längenwarnung genutzt). */
   function layout(ctx, state, size, logo) {
+    var shape = state.shape || "arc";
     var hasLogo = !!logo;
     var R = size / 2;
     var ringW = R * state.ringWidth / 100;
@@ -95,52 +151,56 @@ window.PBG = window.PBG || {};
     var logoH0 = ringW * 0.92 * (state.logoSize || 80) / 100;
     var aspect = hasLogo ? logoAspect(logo) : 1;
 
-    // Platz für den Text: Ring ohne die ausgeblendeten Enden, mit etwas Rand.
-    var available = Math.max(arcLen - 2 * fade * 0.85 - 6 * DEG, 10 * DEG);
+    if (shape === "badge") return layoutBadge(ctx, state, size, items, baseFont, logoH0, aspect);
 
-    function measure(fontPx) {
-      ctx.font = fontString(state, fontPx);
-      var spacing = fontPx * state.spacing / 100;
-      var symbolW = fontPx * 0.95;
-      var logoH = logoH0 * fontPx / baseFont;
-      var logoW = logoH * aspect;
-      var out = [];
-      var x = 0, end = 0;
-      var run = "", runStart = 0, runIdx = 0;
-      items.forEach(function (it) {
-        var w, start;
-        if (it.type === "char") {
-          // Breite über Präfixe messen, damit Kerning erhalten bleibt
-          run += it.value;
-          var prefix = ctx.measureText(run).width;
-          w = ctx.measureText(it.value).width;
-          start = runStart + prefix - w + runIdx * spacing;
-          runIdx++;
-        } else {
-          w = it.type === "icon" ? symbolW : it.type === "logo" ? logoW : fontPx * 0.25;
-          start = x;
-          run = ""; runIdx = 0;
-          runStart = start + w + spacing;
-        }
-        out.push({ item: it, offset: start, width: w, height: it.type === "logo" ? logoH : w });
-        end = start + w;
-        x = end + spacing;
-        if (it.type !== "char") runStart = x;
-      });
-      return { glyphs: out, total: end, angle: end / rText, symbolW: symbolW, logoW: logoW, logoH: logoH };
+    var topText = prepareText(state, state.textTop);
+    var topItems = topText ? splitGraphemes(topText).map(function (c) { return { type: "char", value: c }; }) : [];
+
+    // Platz für den Text: beim Bogen der Ring ohne die ausgeblendeten Enden, mit etwas Rand;
+    // beim vollen Ring der halbe Umfang (mit Text oben) bzw. fast der ganze Umfang.
+    var available = shape === "ring"
+      ? (topItems.length ? 170 : 320) * DEG
+      : Math.max(arcLen - 2 * fade * 0.85 - 6 * DEG, 10 * DEG);
+
+    var main = fit(ctx, state, items, baseFont, logoH0, aspect, rText, available, "angle", 0.5 * DEG);
+    var L = {
+      shape: shape, R: R, ringW: ringW, rText: rText, arcLen: arcLen, center: center, fade: fade,
+      fontPx: main.fontPx, scale: main.scale, metrics: main.metrics, available: available, overflow: main.overflow,
+      top: null
+    };
+
+    if (topItems.length) {
+      // Text oben: gegenüber der Mitte des Haupttexts, höchstens 150° lang
+      var top = fit(ctx, state, topItems, ringW * (state.sizeTop || 60) / 100, logoH0, 1, rText, 150 * DEG, "angle", 0.5 * DEG);
+      top.center = center - Math.PI;
+      if (shape === "arc") {
+        // eigener kurzer Bogen hinter dem Text oben, mit denselben weichen Enden (höchstens 30°)
+        var topFade = Math.min(state.fade, 30) * DEG;
+        top.arcLen = Math.min(top.metrics.angle + 14 * DEG + 2 * topFade * 0.85, 2 * Math.PI);
+        top.fade = Math.min(topFade, top.arcLen / 2.5);
+      }
+      L.top = top;
     }
+    return L;
+  }
 
-    var scale = 1;
-    var m = measure(baseFont);
-    if (items.length && m.angle > available) {
-      scale = Math.max(available / m.angle, MIN_TEXT_SCALE);
-      m = measure(baseFont * scale);
-    }
-
+  /** Badge: abgerundetes Schild unten mittig; Höhe = Ringbreite, Breite nach Inhalt, höchstens so breit wie der Kreis dort. */
+  function layoutBadge(ctx, state, size, items, baseFont, logoH0, aspect) {
+    var R = size / 2;
+    var h = R * state.ringWidth / 100;
+    var cy = R + R * 0.58;                     // Mitte des Schilds: 58 % des Radius unter der Bildmitte
+    var lower = R * 0.58 + h / 2;              // Abstand der Unterkante von der Bildmitte
+    var chord = 2 * Math.sqrt(Math.max(R * R - lower * lower, 0));
+    var pad = h * 0.5;
+    var maxW = Math.min(chord * 0.94, R * 1.7);
+    var available = Math.max(maxW - 2 * pad, h);
+    var main = fit(ctx, state, items, baseFont, logoH0, aspect, 1, available, "total", 0.5);
+    // Bei Überlänge darf das Schild bis zur Kreisbreite wachsen, damit der (schon verkleinerte) Text darauf bleibt
+    var w = Math.min(Math.max(main.metrics.total + 2 * pad, h * 1.6), Math.max(chord, h * 1.6));
     return {
-      R: R, ringW: ringW, rText: rText, arcLen: arcLen, center: center, fade: fade,
-      fontPx: baseFont * scale, scale: scale, metrics: m, available: available,
-      overflow: items.length > 0 && m.angle > available + 0.5 * DEG
+      shape: "badge", R: R, ringW: h, badge: { x: R - w / 2, y: cy - h / 2, w: w, h: h, pad: pad, cy: cy },
+      fontPx: main.fontPx, scale: main.scale, metrics: main.metrics, available: available, overflow: main.overflow,
+      top: null, empty: !items.length
     };
   }
 
@@ -194,7 +254,7 @@ window.PBG = window.PBG || {};
    * (Conic Gradient) als Alpha-Maske umgesetzt; ältere Browser fallen auf
    * viele schmale Segmente zurück.
    */
-  function drawRing(ctx, state, L, size) {
+  function drawRing(ctx, state, L, size, reverse) {
     var cx = size / 2, cy = size / 2;
     var a0 = L.center - L.arcLen / 2;
     var a1 = L.center + L.arcLen / 2;
@@ -220,10 +280,12 @@ window.PBG = window.PBG || {};
       // linken Ende über unten zum rechten Ende, also gegen die Zeichenrichtung)
       var fill = lc.createConicGradient(norm(a0), cx, cy);
       if (state.gradient) {
-        fill.addColorStop(0, state.ringColor2);
-        fill.addColorStop(frac, state.ringColor);
-        fill.addColorStop(Math.min(frac + 0.0001, 1), state.ringColor);
-        fill.addColorStop(1, state.ringColor2);
+        // reverse: Bogen oben – Farben gespiegelt, damit die Enden zu den Enden des unteren Bogens passen
+        var cA = reverse ? state.ringColor : state.ringColor2, cB = reverse ? state.ringColor2 : state.ringColor;
+        fill.addColorStop(0, cA);
+        fill.addColorStop(frac, cB);
+        fill.addColorStop(Math.min(frac + 0.0001, 1), cB);
+        fill.addColorStop(1, cA);
       } else {
         fill.addColorStop(0, state.ringColor);
         fill.addColorStop(1, state.ringColor);
@@ -264,7 +326,7 @@ window.PBG = window.PBG || {};
           var e = Math.min(pos, L.arcLen - pos) / L.fade;
           if (e < 1) alpha = e * e * (3 - 2 * e);
         }
-        var mix = state.gradient ? 1 - tm : 0;
+        var mix = state.gradient ? (reverse ? tm : 1 - tm) : 0;
         var col = [0, 1, 2].map(function (k) { return Math.round(c1[k] + (c2[k] - c1[k]) * mix); });
         var sa = a0 + ta * L.arcLen - 0.002, sb = a0 + tb * L.arcLen + 0.002;
         lc.beginPath();
@@ -277,6 +339,67 @@ window.PBG = window.PBG || {};
     }
 
     ctx.drawImage(layer, 0, 0);
+  }
+
+  /** Voller Ring: geschlossen, ohne weiche Enden; Verlauf von unten (Ringfarbe) nach oben (zweite Farbe). */
+  function drawFullRing(ctx, state, L, size) {
+    var cx = size / 2, cy = size / 2;
+    var layer = document.createElement("canvas");
+    layer.width = layer.height = size;
+    var lc = layer.getContext("2d");
+    lc.beginPath();
+    lc.arc(cx, cy, L.R + 1, 0, Math.PI * 2, false);
+    lc.arc(cx, cy, L.R - L.ringW, Math.PI * 2, 0, true);
+    lc.closePath();
+    if (state.gradient && typeof lc.createConicGradient === "function") {
+      var g = lc.createConicGradient(norm(L.center), cx, cy);
+      g.addColorStop(0, state.ringColor);
+      g.addColorStop(0.5, state.ringColor2);
+      g.addColorStop(1, state.ringColor);
+      lc.fillStyle = g;
+    } else if (state.gradient) {
+      var lg = lc.createLinearGradient(cx + Math.cos(L.center) * L.R, cy + Math.sin(L.center) * L.R, cx - Math.cos(L.center) * L.R, cy - Math.sin(L.center) * L.R);
+      lg.addColorStop(0, state.ringColor);
+      lg.addColorStop(1, state.ringColor2);
+      lc.fillStyle = lg;
+    } else {
+      lc.fillStyle = state.ringColor;
+    }
+    lc.fill("evenodd");
+    ctx.save();
+    ctx.globalAlpha = state.opacity / 100;
+    ctx.drawImage(layer, 0, 0);
+    ctx.restore();
+  }
+
+  function roundRectPath(c, x, y, w, h, r) {
+    r = Math.min(r, h / 2, w / 2);
+    c.beginPath();
+    c.moveTo(x + r, y);
+    c.arcTo(x + w, y, x + w, y + h, r);
+    c.arcTo(x + w, y + h, x, y + h, r);
+    c.arcTo(x, y + h, x, y, r);
+    c.arcTo(x, y, x + w, y, r);
+    c.closePath();
+  }
+
+  /** Badge: Schild in Ringfarbe (Verlauf von links nach rechts), Deckkraft wie beim Ring. */
+  function drawBadge(ctx, state, L) {
+    if (L.empty) return;
+    var b = L.badge;
+    ctx.save();
+    ctx.globalAlpha = state.opacity / 100;
+    if (state.gradient) {
+      var g = ctx.createLinearGradient(b.x, 0, b.x + b.w, 0);
+      g.addColorStop(0, state.ringColor);
+      g.addColorStop(1, state.ringColor2);
+      ctx.fillStyle = g;
+    } else {
+      ctx.fillStyle = state.ringColor;
+    }
+    roundRectPath(ctx, b.x, b.y, b.w, b.h, b.h / 2);
+    ctx.fill();
+    ctx.restore();
   }
 
   function drawIcon(ctx, icon, w, color) {
@@ -307,36 +430,79 @@ window.PBG = window.PBG || {};
     ctx.drawImage(logo, -dw / 2, -dh / 2, dw, dh);
   }
 
-  /** Setzt Text, Symbole und Logo entlang des unteren Bogens (aufrecht lesbar). */
-  function drawText(ctx, state, L, size, logo) {
-    var m = L.metrics;
+  function drawGlyph(ctx, state, g, logo, nudge) {
+    if (g.item.type === "char") ctx.fillText(g.item.value, 0, nudge);
+    else if (g.item.type === "icon") drawIcon(ctx, g.item.icon, g.width * 0.95, state.textColor);
+    else if (g.item.type === "logo" && logo) drawLogo(ctx, logo, g.width, g.height);
+  }
+
+  /**
+   * Setzt Text, Symbole und Logo entlang eines Bogens (aufrecht lesbar).
+   * Unten (top = false) läuft die Lesrichtung mit abnehmendem Winkel, oben mit zunehmendem; oben zeigen die
+   * Zeichen nach außen, damit der Text nicht auf dem Kopf steht.
+   */
+  function drawArcText(ctx, state, m, fontPx, rText, textCenter, size, logo, top) {
     if (!m.glyphs.length) return;
     var cx = size / 2, cy = size / 2;
-    var textCenter = L.center + state.textPos * DEG;
-    // Unten läuft Lesrichtung (links → rechts) mit abnehmendem Winkel
-    var startAngle = textCenter + m.angle / 2;
+    var startAngle = top ? textCenter - m.angle / 2 : textCenter + m.angle / 2;
 
+    ctx.save();
+    ctx.font = fontString(state, fontPx);
+    ctx.fillStyle = state.textColor;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    // Großbuchstaben optisch mittig setzen: "middle" sitzt etwas zu tief
+    var nudge = state.uppercase ? fontPx * 0.04 : 0;
+
+    m.glyphs.forEach(function (g) {
+      if (g.item.type === "gap") return;
+      var mid = g.offset + g.width / 2;
+      var theta = top ? startAngle + mid / rText : startAngle - mid / rText;
+      ctx.save();
+      ctx.translate(cx + rText * Math.cos(theta), cy + rText * Math.sin(theta));
+      ctx.rotate(top ? theta + Math.PI / 2 : theta - Math.PI / 2);
+      drawGlyph(ctx, state, g, logo, nudge);
+      ctx.restore();
+    });
+    ctx.restore();
+  }
+
+  /** Text im Badge: gerade, mittig im Schild. */
+  function drawBadgeText(ctx, state, L, logo) {
+    var m = L.metrics;
+    if (!m.glyphs.length) return;
+    var b = L.badge;
+    var x0 = b.x + (b.w - m.total) / 2;
     ctx.save();
     ctx.font = fontString(state, L.fontPx);
     ctx.fillStyle = state.textColor;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    // Großbuchstaben optisch mittig setzen: "middle" sitzt etwas zu tief
     var nudge = state.uppercase ? L.fontPx * 0.04 : 0;
-
     m.glyphs.forEach(function (g) {
       if (g.item.type === "gap") return;
-      var mid = g.offset + g.width / 2;
-      var theta = startAngle - mid / L.rText;
       ctx.save();
-      ctx.translate(cx + L.rText * Math.cos(theta), cy + L.rText * Math.sin(theta));
-      ctx.rotate(theta - Math.PI / 2);
-      if (g.item.type === "char") ctx.fillText(g.item.value, 0, nudge);
-      else if (g.item.type === "icon") drawIcon(ctx, g.item.icon, g.width * 0.95, state.textColor);
-      else if (g.item.type === "logo" && logo) drawLogo(ctx, logo, g.width, g.height);
+      ctx.translate(x0 + g.offset + g.width / 2, b.cy);
+      drawGlyph(ctx, state, g, logo, nudge);
       ctx.restore();
     });
     ctx.restore();
+  }
+
+  /** Zeichnet Form und Texte entsprechend state.shape. */
+  function drawFrame(ctx, state, L, size, logo) {
+    if (L.shape === "badge") {
+      drawBadge(ctx, state, L);
+      drawBadgeText(ctx, state, L, logo);
+      return;
+    }
+    if (L.shape === "ring") drawFullRing(ctx, state, L, size);
+    else {
+      drawRing(ctx, state, L, size);
+      if (L.top) drawRing(ctx, state, { R: L.R, ringW: L.ringW, center: L.top.center, arcLen: L.top.arcLen, fade: L.top.fade }, size, true);
+    }
+    drawArcText(ctx, state, L.metrics, L.fontPx, L.rText, L.center + state.textPos * DEG, size, logo, false);
+    if (L.top) drawArcText(ctx, state, L.top.metrics, L.top.fontPx, L.rText, L.top.center, size, null, true);
   }
 
   /**
@@ -363,8 +529,7 @@ window.PBG = window.PBG || {};
     var lc = layer.getContext("2d");
     drawPhoto(lc, state, photo, size);
     var L = layout(lc, state, size, opts.logo || null);
-    drawRing(lc, state, L, size);
-    drawText(lc, state, L, size, opts.logo);
+    drawFrame(lc, state, L, size, opts.logo);
 
     lc.globalCompositeOperation = "destination-in";
     lc.beginPath();
@@ -374,7 +539,10 @@ window.PBG = window.PBG || {};
 
     ctx.drawImage(layer, 0, 0);
     ctx.restore();
-    return { scale: L.scale, overflow: L.overflow };
+    return {
+      scale: L.scale, overflow: L.overflow,
+      topScale: L.top ? L.top.scale : 1, topOverflow: !!(L.top && L.top.overflow)
+    };
   };
 
   PBG.color = { hexToRgb: hexToRgb, rgba: rgba };
