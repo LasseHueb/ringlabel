@@ -136,8 +136,10 @@
     return px;
   }
 
+  /** Zustand fürs Zeichnen; textOverride: eigener Text eines Fotos aus „Mehrere Fotos“, solange dessen Ausschnitt bearbeitet wird. */
+  var textOverride = null;
   function renderState() {
-    return state;
+    return textOverride != null ? Object.assign({}, state, { text: textOverride }) : state;
   }
 
   function renderOpts(extra) {
@@ -1025,24 +1027,33 @@
     return c;
   }
 
+  /** Ist die Datei ein Bild, das der Editor öffnen kann (inkl. HEIC)? */
+  function isImageFile(file) {
+    return isHeic(file) || !file.type || /^image\//.test(file.type);
+  }
+
+  /** Öffnet eine Bilddatei (auch HEIC); onHeic wird vor einer HEIC-Umwandlung aufgerufen. */
+  function decodeFile(file, onHeic) {
+    var heic = isHeic(file);
+    return decodeImage(file).catch(function (err) {
+      // Safari kann HEIC selbst öffnen; andere Browser brauchen die Umwandlung
+      if (!heic) throw err;
+      if (onHeic) onHeic();
+      return loadHeicLib()
+        .then(function (heic2any) { return heic2any({ blob: file, toType: "image/jpeg", quality: 0.95 }); })
+        .then(function (out) { return decodeImage(Array.isArray(out) ? out[0] : out); });
+    });
+  }
+
   function loadFile(file) {
     if (!file) return;
-    var heic = isHeic(file);
-    if (!heic && file.type && !/^image\//.test(file.type)) {
+    if (!isImageFile(file)) {
       setStatus(els.uploadStatus, t("upload.errorType"), true);
       return;
     }
     setStatus(els.uploadStatus, t("upload.loading"));
 
-    decodeImage(file)
-      .catch(function (err) {
-        // Safari kann HEIC selbst öffnen; andere Browser brauchen die Umwandlung
-        if (!heic) throw err;
-        setStatus(els.uploadStatus, t("upload.heicLoading"));
-        return loadHeicLib()
-          .then(function (heic2any) { return heic2any({ blob: file, toType: "image/jpeg", quality: 0.95 }); })
-          .then(function (out) { return decodeImage(Array.isArray(out) ? out[0] : out); });
-      })
+    decodeFile(file, function () { setStatus(els.uploadStatus, t("upload.heicLoading")); })
       .then(function (img) {
         photo = toPhotoCanvas(img);
         photoName = file.name || "";
@@ -1413,7 +1424,30 @@
   PBG.editor = {
     state: function () { return state; },
     logo: function () { return logo; },
-    ensureFont: function (s) { return ensureFont(s); }
+    ensureFont: function (s) { return ensureFont(s); },
+    /** Für „Mehrere Fotos“ (batch.js): Bilddateien öffnen wie beim Einzelfoto (inkl. HEIC). */
+    isImageFile: isImageFile,
+    decodeFile: function (file) { return decodeFile(file); },
+    /** Aktuelles Foto des Editors mit Ausschnitt (zum Merken und Wiederherstellen). */
+    getPhoto: function () {
+      return { photo: photo, name: photoName, zoom: state.zoom, offsetX: state.offsetX, offsetY: state.offsetY };
+    },
+    /** Setzt Foto und Ausschnitt des Editors (null = Platzhalter) und optional einen eigenen Text nur für die Vorschau. */
+    setPhoto: function (canvas, name, view, text) {
+      photo = canvas || null;
+      photoName = name || "";
+      state.zoom = view && view.zoom || 1;
+      state.offsetX = view && view.offsetX || 0;
+      state.offsetY = view && view.offsetY || 0;
+      textOverride = text != null && text !== "" ? text : null;
+      clampOffsets();
+      els.zoom.value = state.zoom;
+      updateOutput("zoom");
+      els.removePhoto.hidden = !photo;
+      els.fileInput.value = "";
+      requestRender();
+    },
+    stage: function () { return els.stage; }
   };
 
   function init() {
