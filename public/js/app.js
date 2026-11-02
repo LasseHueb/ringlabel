@@ -150,6 +150,8 @@
     lastInfo = PBG.render(els.preview.getContext("2d"), s, photo, size, renderOpts());
     updateWarnings();
     els.preview.setAttribute("aria-label", t("preview.canvasLabel", { text: state.text || "–" }));
+    // Profil-Banner (banner.js) übernimmt Farben, Schrift und Logo des Rahmens
+    document.dispatchEvent(new Event("pbg:design"));
   }
 
   function updateWarnings() {
@@ -550,7 +552,7 @@
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
     var dropped = [];
     Object.keys(raw).forEach(function (k) {
-      if (["format", "version", "id", "name", "design", "logo", "created"].indexOf(k) < 0) dropped.push(k);
+      if (["format", "version", "id", "name", "design", "logo", "created", "banner"].indexOf(k) < 0) dropped.push(k);
     });
     var d = raw.design;
     if (!d || typeof d !== "object" || Array.isArray(d)) return null;
@@ -561,6 +563,9 @@
       if (v === undefined) dropped.push(k); else design[k] = v;
     });
     if (!Object.keys(design).length) return null;
+    // Banner-Einstellungen sind optional (ältere Vorlagen haben keine)
+    var b = PBG.validateBanner(raw.banner);
+    dropped = dropped.concat(b.dropped);
     var logoUrl = null;
     if (raw.logo != null && raw.logo !== "") {
       if (typeof raw.logo === "string" && raw.logo.length <= OWN_FILE_MAX * 1.4 && LOGO_DATA_URL.test(raw.logo)) logoUrl = raw.logo;
@@ -573,6 +578,7 @@
         name: name || t("own.unnamed"),
         design: design,
         logo: logoUrl,
+        banner: b.banner,
         created: typeof raw.created === "number" && isFinite(raw.created) ? raw.created : Date.now()
       },
       dropped: dropped
@@ -599,7 +605,7 @@
   function currentTemplate(name) {
     var design = {};
     PBG.DESIGN_KEYS.forEach(function (k) { design[k] = state[k]; });
-    return { id: newId(), name: name, design: design, logo: logo ? logoDataUrl : null, created: Date.now() };
+    return { id: newId(), name: name, design: design, logo: logo ? logoDataUrl : null, banner: PBG.banner ? PBG.banner.get() : null, created: Date.now() };
   }
 
   /** Dekodiert das Logo einer Vorlage (Data-URL) zu einem Bild; Ergebnis wird zwischengespeichert. */
@@ -622,6 +628,8 @@
     PBG.DESIGN_KEYS.forEach(function (k) { s0[k] = PBG.DEFAULTS[k]; });
     Object.assign(state, s0, tpl.design, keep);
     activePreset = "own:" + tpl.id;
+    // Vorlagen ohne Banner-Einstellungen lassen das aktuelle Banner unverändert
+    if (tpl.banner && PBG.banner) PBG.banner.set(tpl.banner);
     endLinkOffer();
     templateLogo(tpl).then(function (img) {
       if (img) setLogoCanvas(toLogoCanvas(img, false)); else clearLogo();
@@ -641,6 +649,7 @@
 
   function exportOwnTemplate(tpl) {
     var data = { format: OWN_FORMAT, version: 1, name: tpl.name, design: tpl.design, logo: tpl.logo || null };
+    if (tpl.banner) data.banner = tpl.banner;
     var blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     var url = URL.createObjectURL(blob);
     var a = document.createElement("a");
@@ -1399,6 +1408,13 @@
     var key = params.get("vorlage") || body.dataset.preset || "jobsuche";
     return PBG.presetByKey(key) || PBG.PRESETS[0];
   }
+
+  /** Schnittstelle für das Profil-Banner (banner.js): aktuelles Design und Logo, nur lesend. */
+  PBG.editor = {
+    state: function () { return state; },
+    logo: function () { return logo; },
+    ensureFont: function (s) { return ensureFont(s); }
+  };
 
   function init() {
     PBG.applyI18n();
