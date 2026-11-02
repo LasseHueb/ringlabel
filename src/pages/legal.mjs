@@ -51,13 +51,14 @@ export default function pages(ctx) {
 
     <h2>3. Verarbeitung deiner Fotos und Logos</h2>
     <p>Fotos, Logos und Hintergrundbilder für das Profil-Banner, die du auswählst, werden ausschließlich lokal in deinem Browser verarbeitet. Sie werden weder an mich noch an GitHub oder andere Dritte übertragen. Fotos und Hintergrundbilder werden nicht gespeichert: Sobald du die Seite schließt, sind sie aus dem Speicher entfernt. Ein Logo wird nur dann gespeichert, wenn du es selbst als Teil einer eigenen Vorlage sicherst (siehe Abschnitt 4). Logos werden auch nicht in geteilte Links übernommen.</p>
+    <p>Das gilt ebenso für ein eigenes Logo im Profil-Banner („Logo im Banner“ → „Eigenes Logo“): Es wird nur in deinem Browser verarbeitet, nicht übertragen und gelangt nie in Design-Links. Gespeichert wird es nur, wenn du eine eigene Vorlage sicherst – dann lokal in deinem Browser, verkleinert auf höchstens 512 Pixel.</p>
     <p>Das gilt auch, wenn du unter „Mehrere Fotos“ bis zu 30 Fotos auf einmal bearbeitest: Die Fotos werden nur im Arbeitsspeicher deines Browsers verarbeitet, weder hochgeladen noch gespeichert – auch nicht im lokalen Speicher, in eigenen Vorlagen oder in geteilten Links – und beim Schließen oder Neuladen der Seite verworfen. Die ZIP-Datei mit den fertigen Bildern entsteht ebenfalls lokal auf deinem Gerät.</p>
 
     <h2>4. Lokaler Speicher im Browser</h2>
     <p>Eigene Vorlagen (inklusive eines Logos) und deine Farbschema-Einstellung werden nur auf deinem Gerät im lokalen Speicher deines Browsers (localStorage) abgelegt – und nur dann, wenn du das selbst auslöst, zum Beispiel mit „Als eigene Vorlage speichern“. Diese Daten werden nicht übertragen, weder an mich noch an Dritte. Die Speicherung ist für die von dir gewünschte Funktion unbedingt erforderlich (§ 25 Abs. 2 Nr. 2 TDDDG).</p>
     <p>Genutzt werden genau diese Einträge:</p>
     <ul>
-      <li><code>rl-own-templates</code>: deine eigenen Vorlagen mit Name, Design-Einstellungen, Banner-Einstellungen (Format, Texte, Ausrichtung, Hintergrund-Art) und gegebenenfalls Logo – niemals dein Foto oder ein Hintergrundbild</li>
+      <li><code>rl-own-templates</code>: deine eigenen Vorlagen mit Name, Design-Einstellungen, Banner-Einstellungen (Format, Texte, Ausrichtung, Hintergrund, Farben, Schriftgrößen, Logo-Position) und gegebenenfalls Logo und Banner-Logo – niemals dein Foto oder ein Hintergrundbild</li>
       <li><code>pbg-theme</code>: dein gewähltes Farbschema (System, Hell oder Dunkel)</li>
       <li><code>pbg-share-dismissed</code>: dass du „Nicht mehr anzeigen“ beim Teilen-Hinweis angehakt hast</li>
     </ul>
@@ -68,7 +69,7 @@ export default function pages(ctx) {
 
     <h2>6. Teilen-Funktion</h2>
     <p>Nach dem Download kannst du die App mit „Link kopieren“ oder über die Teilen-Funktion deines Geräts weiterempfehlen. Beides arbeitet lokal: Der Link wird in deine Zwischenablage kopiert bzw. an das Teilen-Menü deines Geräts übergeben. Dabei werden keine Daten an mich oder an Dritte übertragen.</p>
-    <p>Mit „Link zu diesem Design kopieren“ kannst du ein Design als Link weitergeben. Der Link enthält nur die Design-Einstellungen (zum Beispiel Text, Farben, Schrift, Symbol, Größen und Positionen) – niemals dein Foto und niemals dein Logo. Die Einstellungen stehen im Teil der Adresse nach dem Zeichen „#“. Diesen Teil überträgt der Browser beim Aufruf der Seite nicht an den Server; er wird erst im Browser der Person ausgewertet, die den Link öffnet, und danach aus der Adresszeile entfernt. Erstellt wird der Link lokal in deinem Browser; an wen du ihn weitergibst, entscheidest du selbst. Beachte, dass alle, die den Link erhalten, den darin enthaltenen Text lesen können.</p>
+    <p>Mit „Link zu diesem Design kopieren“ kannst du ein Design als Link weitergeben. Der Link enthält nur die Design-Einstellungen (zum Beispiel Text, Farben, Schrift, Symbol, Größen und Positionen) und gegebenenfalls die Einstellungen des Profil-Banners (Texte, Farben, Muster, Ausrichtung) – niemals dein Foto, niemals ein Hintergrundbild und niemals ein Logo, auch nicht das Banner-Logo. Die Einstellungen stehen im Teil der Adresse nach dem Zeichen „#“. Diesen Teil überträgt der Browser beim Aufruf der Seite nicht an den Server; er wird erst im Browser der Person ausgewertet, die den Link öffnet, und danach aus der Adresszeile entfernt. Erstellt wird der Link lokal in deinem Browser; an wen du ihn weitergibst, entscheidest du selbst. Beachte, dass alle, die den Link erhalten, den darin enthaltenen Text lesen können.</p>
 
     <h2>7. Kontakt per E-Mail</h2>
     <p>Wenn du mir eine E-Mail schreibst, verarbeite ich deine Angaben nur, um deine Anfrage zu beantworten (Art. 6 Abs. 1 lit. f DSGVO). Die E-Mail lösche ich, sobald sie erledigt ist und keine gesetzlichen Aufbewahrungspflichten bestehen.</p>
