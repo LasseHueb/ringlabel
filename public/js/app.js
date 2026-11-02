@@ -1,7 +1,7 @@
 /*
  * Profilbild-Rahmen-Editor – UI-Logik. Fotos werden ausschließlich lokal im Browser verarbeitet.
  * Alle Funktionen stehen allen zur Verfügung; es gibt kein Backend.
- * Startvorlage über <body data-preset="jobsuche"> oder ?vorlage=jobsuche.
+ * Startvorlage über <body data-preset="jobsuche"> oder ?vorlage=jobsuche; ein geteiltes Design über #d=… (siehe „Design als Link“).
  */
 (function () {
   "use strict";
@@ -42,7 +42,10 @@
     gradient: $("gradient"), ringColor2Field: $("ringColor2-field"),
     textWarning: $("text-warning"), contrastWarning: $("contrast-warning"),
     download: $("download"), downloadLabel: $("download-label"), share: $("share"), exportStatus: $("export-status"),
-    shareDialog: $("share-dialog"), shareStatus: $("share-status"), shareDontShow: $("share-dont-show")
+    shareDialog: $("share-dialog"), shareStatus: $("share-status"), shareDontShow: $("share-dont-show"),
+    linkDesign: $("link-design"), linkDialog: $("link-dialog"), linkUrl: $("link-url"), linkCopy: $("link-copy"),
+    linkStatus: $("link-status"), linkLogoNote: $("link-logo-note"),
+    linkNotice: $("link-notice"), linkNoticeText: $("link-notice-text"), linkNoticeSave: $("link-notice-save"), linkNoticeClose: $("link-notice-close")
   };
 
   // ---------- Hilfsfunktionen ----------
@@ -426,6 +429,7 @@
     var keep = { zoom: state.zoom, offsetX: state.offsetX, offsetY: state.offsetY, bg: state.bg, exportSize: state.exportSize, logoPos: state.logoPos, logoSize: state.logoSize };
     Object.assign(state, presetState(p), keep);
     activePreset = p.key;
+    endLinkOffer();
     syncControls();
     markPreset();
     requestRender();
@@ -556,6 +560,7 @@
     PBG.DESIGN_KEYS.forEach(function (k) { s0[k] = PBG.DEFAULTS[k]; });
     Object.assign(state, s0, tpl.design, keep);
     activePreset = "own:" + tpl.id;
+    endLinkOffer();
     templateLogo(tpl).then(function (img) {
       if (img) setLogoCanvas(toLogoCanvas(img, false)); else clearLogo();
     }).catch(clearLogo).then(function () {
@@ -691,6 +696,11 @@
       var actions = document.createElement("div");
       actions.className = "own-actions";
       actions.appendChild(smallButton(t("own.rename"), "", function () { startRename(li, tpl); }));
+      var linkBtn = smallButton(t("link.copyOwn"), "", function () {
+        openLinkDialog(Object.assign(defaultDesign(), tpl.design), !!tpl.logo);
+      });
+      linkBtn.setAttribute("aria-label", t("link.copyOwnLabel", { name: tpl.name }));
+      actions.appendChild(linkBtn);
       actions.appendChild(smallButton(t("own.export"), "", function () { exportOwnTemplate(tpl); }));
       actions.appendChild(smallButton(t("own.delete"), "danger", function () {
         if (!window.confirm(t("own.confirmDelete", { name: tpl.name }))) return;
@@ -710,6 +720,19 @@
     markPreset();
   }
 
+  /** Speichert das aktuelle Design als eigene Vorlage; report(msg, isError) zeigt das Ergebnis. Gibt true bei Erfolg zurück. */
+  function saveOwnTemplate(name, report) {
+    if (ownTemplates.length >= OWN_MAX) { report(t("own.limit", { max: OWN_MAX }), true); return false; }
+    var tpl = currentTemplate(name);
+    ownTemplates.unshift(tpl);
+    var err = persistOwnTemplates();
+    if (err) { ownTemplates.shift(); report(err, true); return false; }
+    activePreset = "own:" + tpl.id;
+    renderOwnList();
+    report(t("own.saved", { name: name }), false);
+    return true;
+  }
+
   function bindOwnTemplates() {
     loadOwnTemplates();
     renderOwnList();
@@ -717,19 +740,170 @@
       e.preventDefault();
       var name = els.ownName.value.trim().slice(0, NAME_MAX);
       if (!name) { ownMsg(t("own.nameMissing"), true); els.ownName.focus(); return; }
-      if (ownTemplates.length >= OWN_MAX) { ownMsg(t("own.limit", { max: OWN_MAX }), true); return; }
-      var tpl = currentTemplate(name);
-      ownTemplates.unshift(tpl);
-      var err = persistOwnTemplates();
-      if (err) { ownTemplates.shift(); ownMsg(err, true); return; }
-      activePreset = "own:" + tpl.id;
-      els.ownName.value = "";
-      renderOwnList();
-      ownMsg(t("own.saved", { name: name }));
+      if (saveOwnTemplate(name, ownMsg)) els.ownName.value = "";
     });
     els.ownImport.addEventListener("change", function () {
       importOwnTemplate(els.ownImport.files && els.ownImport.files[0]);
       els.ownImport.value = "";
+    });
+  }
+
+  // ---------- Design als Link (#d=…): nur Design-Einstellungen, nie Foto oder Logo ----------
+  /*
+   * Format: https://…/#d=<base64url(JSON)>, JSON = { "v": 1, <PBG.DESIGN_KEYS>… } ohne Leerzeichen.
+   * „v“ ist die Formatversion: Wird das Format später geändert, bekommt es eine neue Nummer, und ältere Links
+   * werden weiter anhand ihrer Nummer gelesen. Das Fragment (#…) schickt der Browser nie an den Server.
+   */
+  var LINK_VERSION = 1;
+  var LINK_MAX = 2000;   // Zeichen nach „d=“; ein gültiges Design braucht höchstens etwa 1000
+  /** Beschriftungen für die Meldung, welche Angaben aus einem Link verworfen wurden. */
+  var FIELD_LABELS = { text: "text.label", font: "text.font", size: "text.size", bold: "text.bold", uppercase: "text.uppercase",
+    spacing: "text.spacing", textPos: "text.position", textColor: "text.color", ringColor: "ring.color", ringColor2: "ring.color2",
+    gradient: "ring.gradient", ringWidth: "ring.width", ringLength: "ring.length", ringRotation: "ring.rotation", fade: "ring.fade",
+    opacity: "ring.opacity", icon: "icon.label", iconPos: "icon.pos", logoPos: "logo.pos", logoSize: "logo.size" };
+  var linkFromUrl = false;   // aktuelles Design stammt aus einem Link (für „Als eigene Vorlage speichern“)
+
+  function defaultDesign() {
+    var d = {};
+    PBG.DESIGN_KEYS.forEach(function (k) { d[k] = PBG.DEFAULTS[k]; });
+    return d;
+  }
+
+  function base64urlEncode(str) {
+    var bytes = new TextEncoder().encode(str);
+    var bin = "";
+    for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+
+  /** Wirft bei ungültigen Zeichen, kaputtem Base64 oder ungültigem UTF-8. */
+  function base64urlDecode(s) {
+    if (!/^[A-Za-z0-9_-]+$/.test(s)) throw new Error("chars");
+    var b64 = s.replace(/-/g, "+").replace(/_/g, "/");
+    while (b64.length % 4) b64 += "=";
+    var bin = atob(b64);
+    var bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  }
+
+  /** Link zur aktuellen Seite (Sprache bleibt erhalten) mit dem Design im Fragment. */
+  function designLink(design) {
+    var data = { v: LINK_VERSION };
+    PBG.DESIGN_KEYS.forEach(function (k) { if (design[k] !== undefined) data[k] = design[k]; });
+    return location.origin + location.pathname + "#d=" + base64urlEncode(JSON.stringify(data));
+  }
+
+  /**
+   * Liest ein Design aus dem Fragment. Gibt null zurück, wenn es kein Design-Link ist, sonst
+   * { error: i18n-Schlüssel } oder { design, dropped: [Schlüssel], unknown: Anzahl unbekannter Angaben }.
+   * Geprüft wird wie beim Datei-Import (validValue): nur bekannte Schlüssel, Werte im erlaubten Bereich.
+   */
+  function parseDesignLink(hash) {
+    var m = /^#(?:.*&)?d=([^&]*)/.exec(hash || "");
+    if (!m) return null;
+    var raw = m[1];
+    if (raw.length > LINK_MAX) return { error: "link.errorTooLong" };
+    var data;
+    try { data = JSON.parse(base64urlDecode(raw)); } catch (e) { return { error: "link.errorInvalid" }; }
+    if (!data || typeof data !== "object" || Array.isArray(data)) return { error: "link.errorInvalid" };
+    if (data.v !== LINK_VERSION) return { error: typeof data.v === "number" ? "link.errorVersion" : "link.errorInvalid" };
+    var design = {}, dropped = [], unknown = 0;
+    Object.keys(data).forEach(function (k) {
+      if (k === "v") return;
+      if (PBG.DESIGN_KEYS.indexOf(k) < 0) { unknown++; return; }
+      var v = validValue(k, data[k]);
+      if (v === undefined) dropped.push(k); else design[k] = v;
+    });
+    if (!Object.keys(design).length) return { error: "link.errorInvalid" };
+    return { design: design, dropped: dropped, unknown: unknown };
+  }
+
+  /** Übernimmt ein Design; Foto-Ausschnitt, Export-Einstellungen und ein vorhandenes Logo bleiben erhalten. */
+  function applyDesign(design) {
+    var keep = { zoom: state.zoom, offsetX: state.offsetX, offsetY: state.offsetY, bg: state.bg, exportSize: state.exportSize };
+    Object.assign(state, defaultDesign(), design, keep);
+    activePreset = null;
+    syncControls();
+    markPreset();
+    requestRender();
+  }
+
+  /** Andere Vorlage gewählt: „Als eigene Vorlage speichern“ bezieht sich nicht mehr auf das Design aus dem Link. */
+  function endLinkOffer() {
+    linkFromUrl = false;
+    els.linkNoticeSave.hidden = true;
+  }
+
+  function showLinkNotice(msg, isError, offerSave) {
+    els.linkNoticeText.textContent = msg;
+    els.linkNotice.classList.toggle("error", !!isError);
+    els.linkNoticeSave.hidden = !offerSave;
+    els.linkNotice.hidden = false;
+  }
+
+  /** Lädt ein Design aus #d=… und entfernt das Fragment sofort aus der Adresse. Gibt true zurück, wenn ein Design geladen wurde. */
+  function loadLinkFromHash() {
+    var r = parseDesignLink(location.hash);
+    if (!r) return false;
+    // Fragment entfernen (auch bei Fehlern), damit es nicht versehentlich mit der Adresse weitergeteilt wird
+    try { history.replaceState(history.state, "", location.pathname + location.search); } catch (e) { /* alte Browser */ }
+    if (r.error) {
+      linkFromUrl = false;
+      showLinkNotice(t(r.error, { app: cfg.appName }), true, false);
+      return false;
+    }
+    applyDesign(r.design);
+    linkFromUrl = true;
+    var fields = r.dropped.map(function (k) { return t(FIELD_LABELS[k]); });
+    if (r.unknown) fields.push(t("link.unknown", { count: r.unknown }));
+    var msg = t("link.loaded") + (fields.length ? " " + t("link.partial", { fields: fields.join(", ") }) : "");
+    showLinkNotice(msg, fields.length > 0, true);
+    return true;
+  }
+
+  function openLinkDialog(design, hasLogo) {
+    els.linkUrl.value = designLink(design);
+    els.linkLogoNote.hidden = !hasLogo;
+    setStatus(els.linkStatus, "");
+    showDialog(els.linkDialog);
+    copyLink();
+  }
+
+  function copyLink() {
+    var url = els.linkUrl.value;
+    var ok = function () { setStatus(els.linkStatus, t("link.copied")); els.linkUrl.select(); };
+    var fallback = function () {
+      // execCommand im Dialog selbst, weil der Rest der Seite bei offenem Dialog nicht bedienbar ist
+      els.linkUrl.focus();
+      els.linkUrl.select();
+      var done = false;
+      try { done = document.execCommand("copy"); } catch (e) { done = false; }
+      if (done) ok(); else setStatus(els.linkStatus, t("link.copyFailed"), true);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(ok, fallback);
+    else fallback();
+  }
+
+  function bindLinks() {
+    els.linkDesign.addEventListener("click", function () {
+      var d = {};
+      PBG.DESIGN_KEYS.forEach(function (k) { d[k] = state[k]; });
+      openLinkDialog(d, !!logo);
+    });
+    els.linkCopy.addEventListener("click", copyLink);
+    els.linkUrl.addEventListener("focus", function () { els.linkUrl.select(); });
+    els.linkDialog.addEventListener("click", function (e) {
+      if (e.target === els.linkDialog) closeDialog(els.linkDialog);
+    });
+    els.linkNoticeClose.addEventListener("click", function () { els.linkNotice.hidden = true; });
+    els.linkNoticeSave.addEventListener("click", function () {
+      if (!linkFromUrl) return;
+      if (saveOwnTemplate(t("link.defaultName"), function (msg, isError) { showLinkNotice(msg, isError, false); })) linkFromUrl = false;
+    });
+    // Link in einem schon offenen Tab eingefügt: Nur das Fragment ändert sich, die Seite lädt nicht neu
+    window.addEventListener("hashchange", function () {
+      if (loadLinkFromHash() || !els.linkNotice.hidden) els.linkNotice.scrollIntoView({ behavior: "smooth", block: "nearest" });
     });
   }
 
@@ -1178,7 +1352,9 @@
     buildPresets();
     bindOwnTemplates();
     bindPresetButtons();
-    applyPreset(initialPreset());
+    bindLinks();
+    // Design-Link (#d=…) hat Vorrang vor ?vorlage=…; ist er ungültig, gilt die normale Startvorlage
+    if (!loadLinkFromHash()) applyPreset(initialPreset());
 
     // Neu zeichnen, wenn sich Größe oder Pixeldichte ändern
     if (window.ResizeObserver) new ResizeObserver(requestRender).observe(els.preview);
