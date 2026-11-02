@@ -1,21 +1,42 @@
-<!-- Profil-Banner (public/js/banner.js). Hintergrundbilder und Logos bleiben im Browser. -->
-<section class="section banner" id="banner" aria-labelledby="banner-h">
-  <h2 id="banner-h" data-i18n="banner.heading">Profil-Banner im gleichen Design</h2>
-  <p class="lead-small" data-i18n="banner.lead">Erstelle passend zu deinem Rahmen ein breites Banner für dein Profil. Farben, Schrift und Logo übernimmt es automatisch aus dem Rahmen oben.</p>
-
+<!-- Banner-Editor (public/js/banner.js). Hintergrundbilder und Logos bleiben im Browser. -->
+<section class="section banner" id="banner-editor" aria-label="Banner-Editor" data-i18n-aria="banner.editorLabel">
   <div class="banner-stage" id="banner-stage">
     <canvas id="banner-preview" tabindex="0" role="img" aria-label="Vorschau des Profil-Banners" width="1584" height="396"></canvas>
   </div>
   <p class="small muted banner-safe-hint" data-i18n="banner.safeHint">Schraffiert: der Bereich, den dein Profilbild verdecken kann. Bei Ausrichtung „Links“ weichen Text und Logo ihm automatisch aus, bei „Rechts“ reicht der Text nicht hinein. Die Markierung ist nicht im Download enthalten.</p>
   <p class="warning" id="banner-warning" role="status" aria-live="polite" hidden></p>
 
-  <!-- Banner-Vorlagen: ändern nur das Banner, nicht den Rahmen -->
+  <!-- Banner-Vorlagen und eigene Banner-Vorlagen (nur im lokalen Speicher dieses Browsers) -->
   <section class="banner-templates panel" aria-labelledby="banner-templates-h">
-    <h3 id="banner-templates-h" data-i18n="banner.templatesHeading">Banner-Vorlagen</h3>
-    <p class="small muted" data-i18n="banner.templatesHint">Ein Klick ändert nur das Banner – dein Rahmen bleibt, wie er ist. Format und Logo-Art bleiben erhalten.</p>
-    <label class="switch"><input type="checkbox" id="banner-frame-colors"><span class="track" aria-hidden="true"></span><span data-i18n="banner.frameColors">Farben vom Rahmen übernehmen</span></label>
+    <h2 id="banner-templates-h" data-i18n="banner.templatesHeading">Banner-Vorlagen</h2>
+    <p class="small muted" data-i18n="banner.templatesHint">Ein Klick übernimmt Text, Farben und Muster der Vorlage. Format, Schrift und Logo bleiben erhalten.</p>
+    <div class="button-row">
+      <button type="button" class="btn btn-secondary" id="banner-from-frame" aria-haspopup="dialog" data-i18n="banner.fromFrame">Farben aus einer Rahmen-Vorlage übernehmen</button>
+    </div>
+
+    <section class="own-templates" aria-labelledby="own-heading">
+      <h3 class="preset-group" id="own-heading" data-i18n="own.heading">Meine Vorlagen</h3>
+      <p class="small muted" id="own-empty" data-i18n="banner.ownEmpty">Noch keine eigenen Banner-Vorlagen. Gestalte dein Banner und speichere es hier – auf diesem Gerät, ohne Hintergrundbild.</p>
+      <ul class="own-list" id="own-list"></ul>
+      <form class="own-save" id="own-save-form" novalidate>
+        <label for="own-name" data-i18n="own.nameLabel">Name der Vorlage</label>
+        <div class="inline-row">
+          <input type="text" id="own-name" maxlength="40" autocomplete="off" data-i18n-placeholder="banner.ownNamePlaceholder">
+          <button type="submit" class="btn btn-secondary" data-i18n="own.save">Als eigene Vorlage speichern</button>
+        </div>
+      </form>
+      <div class="button-row">
+        <label class="btn btn-ghost file-button">
+          <span data-i18n="own.import">Aus Datei importieren</span>
+          <input type="file" id="own-import" class="visually-hidden" accept="application/json,.json">
+        </label>
+        <button type="button" class="btn btn-ghost" id="banner-link" data-i18n="banner.copyLink">Link zu diesem Banner kopieren</button>
+      </div>
+      <p class="status" id="own-status" role="status" aria-live="polite"></p>
+    </section>
+
     <div class="banner-current" id="banner-current" hidden>
-      <h4 class="preset-group" data-i18n="presets.current">Gerade passend</h4>
+      <h3 class="preset-group" data-i18n="presets.current">Gerade passend</h3>
       <div class="banner-presets" id="banner-presets-current"></div>
     </div>
     <div id="banner-presets"></div>
@@ -27,7 +48,6 @@
       <div class="field">
         <label for="banner-title" data-i18n="banner.title">Überschrift</label>
         <input type="text" id="banner-title" maxlength="60" autocomplete="off" data-i18n-placeholder="banner.titlePlaceholder">
-        <p class="field-note" data-i18n="banner.titleHint">Leer gelassen, steht hier der Text deines Rahmens.</p>
       </div>
       <div class="field">
         <label for="banner-subtitle" data-i18n="banner.subtitle">Unterzeile</label>
@@ -49,7 +69,6 @@
         <div class="field">
           <label for="banner-bold" data-i18n="banner.bold">Überschrift</label>
           <select id="banner-bold">
-            <option value="frame" data-i18n="banner.boldFrame">Wie im Rahmen</option>
             <option value="bold" data-i18n="banner.boldBold">Fett</option>
             <option value="regular" data-i18n="banner.boldRegular">Normal</option>
           </select>
@@ -58,6 +77,7 @@
       <div class="toggles">
         <label class="switch"><input type="checkbox" id="banner-own-textcolor"><span class="track" aria-hidden="true"></span><span data-i18n="banner.ownTextColor">Eigene Textfarbe</span></label>
       </div>
+      <p class="field-note" id="banner-textcolor-auto" data-i18n="banner.textColorAuto">Ohne eigene Textfarbe wird Weiß oder fast Schwarz verwendet – je nachdem, was sich besser vom Hintergrund abhebt.</p>
       <div class="field color-field" id="banner-textcolor-field" hidden>
         <label for="banner-textcolor" data-i18n="banner.textColor">Textfarbe</label>
         <div class="color-inputs">
@@ -92,7 +112,6 @@
       <div class="field">
         <span class="label" id="banner-bgcolor-label" data-i18n="banner.bgColorLabel">Hintergrundfarbe</span>
         <div class="segmented segmented-text segmented-wrap" role="radiogroup" aria-labelledby="banner-bgcolor-label">
-          <label><input type="radio" name="bannerBgColor" value="frame"><span data-i18n="banner.bgFrame">Wie der Rahmen</span></label>
           <label><input type="radio" name="bannerBgColor" value="custom"><span data-i18n="banner.bgCustom">Eigene Farbe</span></label>
           <label><input type="radio" name="bannerBgColor" value="white"><span data-i18n="banner.bgWhite">Weiß</span></label>
           <label><input type="radio" name="bannerBgColor" value="lightgray"><span data-i18n="banner.bgLightgray">Hellgrau</span></label>
@@ -159,7 +178,6 @@
       <div class="field">
         <span class="label visually-hidden" id="banner-logo-label" data-i18n="banner.logoHeading">Logo im Banner</span>
         <div class="segmented segmented-text segmented-wrap" role="radiogroup" aria-labelledby="banner-logo-label">
-          <label><input type="radio" name="bannerLogo" value="frame"><span data-i18n="banner.logoFrame">Wie im Rahmen</span></label>
           <label><input type="radio" name="bannerLogo" value="own"><span data-i18n="banner.logoOwn">Eigenes Logo</span></label>
           <label><input type="radio" name="bannerLogo" value="none"><span data-i18n="banner.logoNone">Kein Logo</span></label>
         </div>
@@ -213,7 +231,20 @@
         </button>
       </div>
       <p class="status" id="banner-status" role="status" aria-live="polite"></p>
-      <p class="small muted" data-i18n="banner.saveHint">Die Banner-Einstellungen werden mit „Als eigene Vorlage speichern“ mitgespeichert – ein Hintergrundbild nicht.</p>
+      <p class="small muted" data-i18n="banner.saveHint">Unter „Meine Vorlagen“ speicherst du die Banner-Einstellungen samt Logo auf diesem Gerät – ein Hintergrundbild nicht.</p>
     </fieldset>
   </div>
 </section>
+
+<!-- Farben aus einer Rahmen-Vorlage: übernimmt nur Farben, Verlauf und Schrift -->
+<dialog class="dialog frame-colors-dialog" id="frame-colors-dialog" aria-labelledby="frame-colors-title">
+  <form method="dialog" class="dialog-close-form"><button class="icon-button" value="close" data-i18n-aria="link.close" aria-label="Schließen">✕</button></form>
+  <h2 id="frame-colors-title" data-i18n="banner.fromFrameTitle">Farben aus einer Rahmen-Vorlage</h2>
+  <p class="small" data-i18n="banner.fromFrameLead">Übernimmt nur Farben, Verlauf und Schrift der gewählten Rahmen-Vorlage. Text, Muster und Logo deines Banners bleiben.</p>
+  <div id="frame-colors-own-wrap" hidden>
+    <h3 class="preset-group" data-i18n="banner.fromFrameOwn">Meine Rahmen-Vorlagen</h3>
+    <div class="frame-colors" id="frame-colors-own"></div>
+  </div>
+  <h3 class="preset-group" data-i18n="banner.fromFrameBuiltin">Rahmen-Vorlagen</h3>
+  <div class="frame-colors" id="frame-colors-builtin"></div>
+</dialog>

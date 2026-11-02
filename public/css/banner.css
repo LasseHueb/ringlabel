@@ -1,0 +1,58 @@
+/* Stile des Banner-Editors (nur auf /banner/ und /en/banner/ geladen). */
+/* Banner-Editor */
+.banner-stage { border-radius: var(--radius); overflow: hidden; box-shadow: 0 6px 24px rgba(0, 0, 0, .14); background: var(--surface-2); }
+.banner-stage canvas { display: block; width: 100%; height: auto; aspect-ratio: 4 / 1; touch-action: none; }
+.banner-stage canvas.dragging { cursor: grabbing; }
+.banner-stage canvas:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.banner-safe-hint { margin: 10px 0 0; }
+/* Banner-Vorlagen und transparenter Hintergrund (Schachbrett nur in der Vorschau) */
+.banner-templates { margin-top: 16px; }
+.banner-templates h2 { margin: 0 0 4px; font-size: 1.15rem; }
+.banner-templates > .button-row { margin: 8px 0 4px; }
+.banner-current { margin: 10px 0 4px; padding: 4px 12px 12px; border: 1.5px solid var(--accent); border-radius: 12px; }
+.banner-presets { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+.banner-preset {
+  display: flex; flex-direction: column; gap: 6px; align-items: stretch; padding: 8px;
+  border: 1.5px solid var(--border); border-radius: 12px; background: var(--surface-2); color: var(--text);
+  font: inherit; font-size: .8rem; font-weight: 700; text-align: center; cursor: pointer;
+}
+.banner-preset:hover { border-color: var(--accent); }
+.banner-preset[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent) inset; }
+.banner-preset:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.banner-preset canvas { display: block; width: 100%; height: auto; border-radius: 6px; }
+.banner-stage.is-transparent canvas, .banner-preset.is-transparent canvas {
+  background: repeating-conic-gradient(#d9dde3 0% 25%, #ffffff 0% 50%) 0 0 / 16px 16px;
+}
+.banner-controls { display: grid; gap: 16px; margin-top: 16px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); align-items: start; }
+.banner-controls .panel { margin: 0; }
+.segmented-col { display: flex; flex-direction: column; align-items: stretch; }
+.segmented-col label { justify-content: flex-start; }
+/* Eigene Banner-Vorlagen (own.js): breite Vorschaubilder */
+.banner .own-templates { margin-top: 10px; }
+.banner .own-preset {
+  display: flex; align-items: center; padding: 6px; border: 1.5px solid var(--border); border-radius: 10px;
+  background: var(--surface-2); color: var(--text); font: inherit; font-size: .875rem; font-weight: 700; cursor: pointer;
+}
+.banner .own-preset:hover, .banner .own-preset[aria-pressed="true"] { border-color: var(--accent); }
+.banner .own-preset[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--accent) inset; }
+.banner .own-preset:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.banner .own-preset canvas { flex: none; display: block; width: 112px; height: auto; border-radius: 6px; }
+.banner .own-preset canvas.is-transparent { background: repeating-conic-gradient(#d9dde3 0% 25%, #ffffff 0% 50%) 0 0 / 12px 12px; }
+/* Dialog „Farben aus einer Rahmen-Vorlage“ */
+.frame-colors-dialog { width: min(640px, calc(100vw - 32px)); }
+.frame-colors { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); margin-bottom: 8px; }
+.frame-color {
+  display: flex; align-items: center; gap: 8px; padding: 6px 8px; min-height: 44px; text-align: left;
+  border: 1.5px solid var(--border); border-radius: 10px; background: var(--surface-2); color: var(--text);
+  font: inherit; font-size: .85rem; font-weight: 600; cursor: pointer;
+}
+.frame-color:hover { border-color: var(--accent); }
+.frame-color:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.frame-color span:last-child { overflow-wrap: anywhere; min-width: 0; }
+.frame-color-swatch {
+  flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%;
+  font-size: .8rem; font-weight: 700; box-shadow: 0 0 0 1px rgba(0, 0, 0, .12) inset;
+}
+/* Breites Panel: Knöpfe nicht über die ganze Breite ziehen */
+.banner-templates .button-row .btn-secondary, .banner .own-save .btn-secondary { flex: 0 1 auto; min-height: 44px; }
+.banner .own-save .inline-row input { flex: 0 1 320px; }

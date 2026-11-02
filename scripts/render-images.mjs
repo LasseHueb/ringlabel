@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 /*
- * Erzeugt die Open-Graph-Bilder (JPEG 1200×630) für die Startseiten aller Sprachen und die Rechtsseiten, die App-Icons
- * und Beispielbilder der Formen (Bogen mit Text oben, voller Ring, Badge; img/beispiele/, für das README)
+ * Erzeugt die Open-Graph-Bilder (JPEG 1200×630) für die Startseiten und Banner-Seiten aller Sprachen und die Rechtsseiten,
+ * die App-Icons und Beispielbilder der Formen (Bogen mit Text oben, voller Ring, Badge; img/beispiele/, für das README)
+ * sowie die Übersicht der Banner-Vorlagen (img/beispiele/banner-vorlagen.png, mit dem Banner-Editor gezeichnet)
  * mit dem echten Renderer im Browser. Ergebnis landet in public/img/ und wird eingecheckt.
- * Texte (Titel, Untertitel, Badge) und Dateiname je Sprache stehen in src/content.mjs (h1, ogImage, og).
+ * Texte (Titel, Untertitel, Badge) und Dateiname je Sprache stehen in src/content.mjs (h1, ogImage, og; Banner-Seite:
+ * bannerPage.h1, bannerPage.ogImage, bannerPage.og).
  *
  * Voraussetzung (einmalig, nur lokal):  npm i --no-save playwright && npx playwright install chromium
  * Aufruf:                               npm run images                         (alle Sprachen + Icons)
@@ -158,6 +160,83 @@ for (const lang of langs) {
   console.log(`✓ OG-Bild ${lang}: public/img/${file}`);
 }
 
+// Banner-Seite der Sprache öffnen und Hilfsfunktionen registrieren (Banner-Editor, banner.js)
+async function openBanner(lang) {
+  await page.goto(`http://localhost:${port}${locales[lang].bannerPage.path}`);
+  await page.waitForFunction(() => window.PBG && window.PBG.bannerEditor);
+  await page.evaluate(() => document.fonts.ready);
+  await page.evaluate(() => {
+    // gezeichnetes Beispiel-Logo (kein echtes Firmenlogo)
+    const logo = document.createElement("canvas"); logo.width = 360; logo.height = 160;
+    const lx = logo.getContext("2d");
+    lx.fillStyle = "#ffffff"; lx.beginPath(); lx.roundRect(0, 0, 360, 160, 36); lx.fill();
+    lx.fillStyle = "#1a5ccc"; lx.beginPath(); lx.arc(80, 80, 46, 0, Math.PI * 2); lx.fill();
+    lx.fillStyle = "#1f2937"; lx.font = '800 64px "Montserrat"'; lx.fillText("Logo", 145, 104);
+    window.__bannerLogo = logo;
+    /** Banner-Vorlage in voller Größe (4:1) mit Beispiel-Logo. */
+    window.__banner = async (key) => {
+      document.querySelector('.banner-preset[data-key="' + key + '"]').click();
+      const b = Object.assign(PBG.bannerEditor.settings(), { format: "4x1", logo: "own" });
+      await PBG.bannerEditor.ensureFonts(b);
+      const F = PBG.BANNER_FORMATS["4x1"];
+      const c = document.createElement("canvas"); c.width = F.w; c.height = F.h;
+      PBG.bannerEditor.render(c.getContext("2d"), F.w, F.h, { settings: b, logo });
+      return c;
+    };
+  });
+}
+
+// OG-Bilder der Banner-Seiten: Titel oben, darunter ein Beispiel-Banner
+for (const lang of langs) {
+  const bp = locales[lang].bannerPage;
+  await openBanner(lang);
+  const file = bp.og.replace(/^\/img\//, "");
+  save(file, await page.evaluate(async ([title, sub, badge, app]) => {
+    const W = 1200, H = 630;
+    const c = document.createElement("canvas"); c.width = W; c.height = H;
+    const x = c.getContext("2d");
+    const g = x.createLinearGradient(0, 0, W, H);
+    g.addColorStop(0, "#0f1419"); g.addColorStop(1, "#1565c0");
+    x.fillStyle = g; x.fillRect(0, 0, W, H);
+    await document.fonts.load('700 60px "Montserrat"'); await document.fonts.load('600 30px "Nunito"'); await document.fonts.load('700 22px "Nunito"');
+    x.fillStyle = "#fff";
+    x.font = '700 28px "Montserrat"'; x.globalAlpha = .85; x.fillText(app, 70, 78); x.globalAlpha = 1;
+    x.font = '700 58px "Montserrat"'; x.fillText(title, 70, 150);
+    x.font = '600 28px "Nunito"'; x.fillStyle = "rgba(255,255,255,.85)"; x.fillText(sub, 70, 198);
+    const banner = await window.__banner("b-rec-team");
+    x.save(); x.shadowColor = "rgba(0,0,0,.4)"; x.shadowBlur = 40; x.shadowOffsetY = 10;
+    x.beginPath(); x.roundRect(70, 240, 1060, 265, 18); x.clip(); x.drawImage(banner, 70, 240, 1060, 265); x.restore();
+    x.font = '700 22px "Nunito"';
+    const bw = x.measureText(badge).width + 36;
+    x.fillStyle = "rgba(255,255,255,.14)";
+    x.beginPath(); x.roundRect(70, H - 96, bw, 48, 24); x.fill();
+    x.fillStyle = "#fff"; x.fillText(badge, 88, H - 64);
+    return c.toDataURL("image/jpeg", 0.86);
+  }, [bp.h1, bp.ogImage.subtitle, bp.ogImage.badge, (await page.evaluate(() => PBG_CONFIG.appName))]));
+  console.log(`✓ OG-Bild Banner ${lang}: public/img/${file}`);
+}
+
+// Übersicht aller Banner-Vorlagen (4:1, mit gezeichnetem Beispiel-Logo, deutsche Texte; nur beim Komplettlauf)
+if (!only.length) {
+  await openBanner("de");
+  save("beispiele/banner-vorlagen.png", await page.evaluate(async () => {
+    const cols = 3, tw = 600, th = 150, gap = 18, capH = 30;
+    const rows = Math.ceil(PBG.BANNER_PRESETS.length / cols);
+    const c = document.createElement("canvas"); c.width = cols * tw + (cols + 1) * gap; c.height = rows * (th + capH) + (rows + 1) * gap;
+    const x = c.getContext("2d");
+    x.fillStyle = "#ffffff"; x.fillRect(0, 0, c.width, c.height);
+    for (let i = 0; i < PBG.BANNER_PRESETS.length; i++) {
+      const bp = PBG.BANNER_PRESETS[i];
+      const full = await window.__banner(bp.key);
+      const cx = gap + (i % cols) * (tw + gap), cy = gap + Math.floor(i / cols) * (th + capH + gap);
+      x.drawImage(full, cx, cy, tw, th);
+      x.fillStyle = "#1f2937"; x.font = '700 17px "Nunito"'; x.textAlign = "left";
+      x.fillText(PBG.loc(bp.name) + " · " + PBG.t("banner.group." + bp.group), cx, cy + th + 22);
+    }
+    return c.toDataURL("image/png");
+  }));
+}
+
 // Beispielbilder der Formen (nur beim Komplettlauf; deutsche Vorlagen-Texte)
 if (!only.length) {
   await open("de");
@@ -177,33 +256,6 @@ if (!only.length) {
       x.drawImage(await window.__example(keys[i], t, i), cx, cy);
       x.fillStyle = "#1f2937"; x.font = '700 18px "Nunito"'; x.textAlign = "center";
       x.fillText(PBG.loc(p.name), cx + t / 2, cy + t + 24);
-    }
-    return c.toDataURL("image/png");
-  }));
-  // Übersicht aller Banner-Vorlagen (4:1, mit gezeichnetem Beispiel-Logo, deutsche Texte)
-  save("beispiele/banner-vorlagen.png", await page.evaluate(async () => {
-    const logo = document.createElement("canvas"); logo.width = 360; logo.height = 160;
-    const lx = logo.getContext("2d");
-    lx.fillStyle = "#ffffff"; lx.beginPath(); lx.roundRect(0, 0, 360, 160, 36); lx.fill();
-    lx.fillStyle = "#1a5ccc"; lx.beginPath(); lx.arc(80, 80, 46, 0, Math.PI * 2); lx.fill();
-    lx.fillStyle = "#1f2937"; lx.font = '800 64px "Montserrat"'; lx.fillText("Logo", 145, 104);
-    await PBG.banner.setLogoDataUrl(logo.toDataURL("image/png"));
-    PBG.banner.set({ logo: "own", format: "4x1" });
-    const cols = 3, tw = 600, th = 150, gap = 18, capH = 30;
-    const rows = Math.ceil(PBG.BANNER_PRESETS.length / cols);
-    const c = document.createElement("canvas"); c.width = cols * tw + (cols + 1) * gap; c.height = rows * (th + capH) + (rows + 1) * gap;
-    const x = c.getContext("2d");
-    x.fillStyle = "#ffffff"; x.fillRect(0, 0, c.width, c.height);
-    for (let i = 0; i < PBG.BANNER_PRESETS.length; i++) {
-      const bp = PBG.BANNER_PRESETS[i];
-      document.querySelector('.banner-preset[data-key="' + bp.key + '"]').click();
-      const F = PBG.BANNER_FORMATS["4x1"];
-      const full = document.createElement("canvas"); full.width = F.w; full.height = F.h;
-      PBG.banner.render(full.getContext("2d"), F.w, F.h, {});
-      const cx = gap + (i % cols) * (tw + gap), cy = gap + Math.floor(i / cols) * (th + capH + gap);
-      x.drawImage(full, cx, cy, tw, th);
-      x.fillStyle = "#1f2937"; x.font = '700 17px "Nunito"'; x.textAlign = "left";
-      x.fillText(PBG.loc(bp.name) + " · " + PBG.t("banner.group." + bp.group), cx, cy + th + 22);
     }
     return c.toDataURL("image/png");
   }));

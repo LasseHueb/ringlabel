@@ -2,6 +2,8 @@
  * Profilbild-Rahmen-Editor – UI-Logik. Fotos werden ausschließlich lokal im Browser verarbeitet.
  * Alle Funktionen stehen allen zur Verfügung; es gibt kein Backend.
  * Startvorlage über <body data-preset="jobsuche"> oder ?vorlage=jobsuche; ein geteiltes Design über #d=… (siehe „Design als Link“).
+ * Gemeinsame Bausteine: common.js (Hilfsfunktionen), own.js („Meine Vorlagen“), links.js (Design-Links, Link-Dialog).
+ * Der Banner-Editor ist ein eigenes Werkzeug auf /banner/ und teilt mit dieser Datei keinen Code.
  */
 (function () {
   "use strict";
@@ -47,32 +49,16 @@
     textWarning: $("text-warning"), contrastWarning: $("contrast-warning"),
     download: $("download"), downloadLabel: $("download-label"), share: $("share"), exportStatus: $("export-status"),
     shareDialog: $("share-dialog"), shareStatus: $("share-status"), shareDontShow: $("share-dont-show"),
-    linkDesign: $("link-design"), linkDialog: $("link-dialog"), linkUrl: $("link-url"), linkCopy: $("link-copy"),
-    linkStatus: $("link-status"), linkLogoNote: $("link-logo-note"),
-    linkNotice: $("link-notice"), linkNoticeText: $("link-notice-text"), linkNoticeSave: $("link-notice-save"), linkNoticeClose: $("link-notice-close")
+    linkDesign: $("link-design")
   };
 
-  // ---------- Hilfsfunktionen ----------
-  function clamp(v, min, max) { return Math.min(max, Math.max(min, v)); }
+  // ---------- Hilfsfunktionen (common.js) ----------
+  var U = PBG.util;
+  var clamp = U.clamp, normalizeHex = U.normalizeHex, luminance = U.luminance, contrast = U.contrast;
+  var setStatus = U.setStatus, showDialog = U.showDialog, closeDialog = U.closeDialog;
 
-  function normalizeHex(v) {
-    v = String(v || "").trim().replace(/^#/, "");
-    if (/^[0-9a-f]{3}$/i.test(v)) v = v.replace(/(.)/g, "$1$1");
-    return /^[0-9a-f]{6}$/i.test(v) ? "#" + v.toLowerCase() : null;
-  }
-
-  function luminance(hex) {
-    return PBG.color.hexToRgb(hex).reduce(function (sum, c, i) {
-      c /= 255;
-      c = c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
-      return sum + c * [0.2126, 0.7152, 0.0722][i];
-    }, 0);
-  }
-
-  function contrast(a, b) {
-    var la = luminance(a), lb = luminance(b);
-    return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
-  }
+  /** Adresse eines Werkzeugs in der Sprache dieser Seite („frame“: / bzw. /en/, „banner“: /banner/ bzw. /en/banner/). */
+  var toolUrl = U.toolUrl;
 
   function formatValue(key, v) {
     var el = $(key);
@@ -81,21 +67,6 @@
     if (unit === "deg") return Math.round(v) + "°";
     if (unit === "pct") return Math.round(v) + " %";
     return String(v);
-  }
-
-  function setStatus(el, msg, isError) {
-    if (!el) return;
-    el.textContent = msg || "";
-    el.classList.toggle("error", !!isError);
-  }
-
-  function showDialog(d) {
-    if (d.showModal) { if (!d.open) d.showModal(); }
-    else d.setAttribute("open", "");
-  }
-
-  function closeDialog(d) {
-    if (d.close) d.close(); else d.removeAttribute("open");
   }
 
   // ---------- Schriften ----------
@@ -152,7 +123,7 @@
     lastInfo = PBG.render(els.preview.getContext("2d"), s, photo, size, renderOpts());
     updateWarnings();
     els.preview.setAttribute("aria-label", t("preview.canvasLabel", { text: state.text || "–" }));
-    // Profil-Banner (banner.js) übernimmt Farben, Schrift und Logo des Rahmens
+    // „Mehrere Fotos“ (batch.js) aktualisiert seine Vorschauen
     document.dispatchEvent(new Event("pbg:design"));
   }
 
@@ -482,8 +453,6 @@
   }
 
   function applyPreset(p) {
-    // Banner mit eigenem Hintergrund bleibt unverändert (siehe PBG.banner.detachFromFrame)
-    if (PBG.banner) PBG.banner.detachFromFrame();
     // Foto-Ausschnitt, Export und Logo-Einstellungen bleiben beim Wechsel der Vorlage erhalten
     var keep = { zoom: state.zoom, offsetX: state.offsetX, offsetY: state.offsetY, bg: state.bg, exportSize: state.exportSize, logoPos: state.logoPos, logoSize: state.logoSize };
     Object.assign(state, presetState(p), keep);
@@ -520,20 +489,17 @@
     });
   }
 
-  // ---------- Eigene Vorlagen: nur im lokalen Speicher dieses Browsers, nie mit Foto ----------
+  // ---------- Eigene Vorlagen (own.js): nur im lokalen Speicher dieses Browsers, nie mit Foto ----------
   var OWN_KEY = "rl-own-templates";
-  var OWN_MAX = 50;
-  var OWN_FILE_MAX = 1024 * 1024;   // Import-Dateien höchstens 1 MB
-  var OWN_FORMAT = "ringlabel-vorlage";
+  var OWN_FILE_MAX = 1024 * 1024;
   var NAME_MAX = 40;
   /** Erlaubte Bereiche (wie die Regler im Editor) – gilt für gespeicherte und importierte Vorlagen. */
   var RANGES = { size: [35, 95], sizeTop: [35, 95], spacing: [-5, 50], textPos: [-90, 90], ringWidth: [8, 32], ringLength: [180, 350],
     ringRotation: [-90, 90], fade: [0, 70], opacity: [40, 100], logoSize: [40, 100] };
   var CHOICES = { iconPos: ["start", "end", "both"], logoPos: ["start", "end", "replace"], shape: ["arc", "ring", "badge"] };
-  var LOGO_DATA_URL = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+\/]+={0,2}$/;
 
-  var ownTemplates = [];
   var ownLogoImages = {};   // id → dekodiertes Logo (für Vorschaubilder und Anwenden)
+  var own = null;           // PBG.OwnList, siehe bindOwnTemplates
 
   /** Prüft einen einzelnen Design-Wert. Gibt den bereinigten Wert oder undefined zurück. */
   function validValue(k, v) {
@@ -551,6 +517,8 @@
   /**
    * Prüft eine Vorlage streng: nur bekannte Schlüssel, Werte im erlaubten Bereich, Logo nur als PNG/JPEG/WebP-Data-URL.
    * Gibt { template, dropped[] } zurück oder null, wenn gar kein gültiges Design enthalten ist.
+   * Ältere Vorlagen können zusätzlich Banner-Einstellungen („banner“, „bannerLogo“) enthalten: Sie bleiben unverändert
+   * gespeichert, damit die Banner-Seite sie einmalig als eigene Banner-Vorlagen übernehmen kann (siehe banner.js).
    */
   function validateTemplate(raw) {
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
@@ -567,86 +535,44 @@
       if (v === undefined) dropped.push(k); else design[k] = v;
     });
     if (!Object.keys(design).length) return null;
-    // Banner-Einstellungen sind optional (ältere Vorlagen haben keine)
-    var b = PBG.validateBanner(raw.banner);
-    dropped = dropped.concat(b.dropped);
     var logoUrl = null;
     if (raw.logo != null && raw.logo !== "") {
-      if (typeof raw.logo === "string" && raw.logo.length <= OWN_FILE_MAX * 1.4 && LOGO_DATA_URL.test(raw.logo)) logoUrl = raw.logo;
+      if (U.validLogoDataUrl(raw.logo, OWN_FILE_MAX * 1.4)) logoUrl = raw.logo;
       else dropped.push("logo");
     }
-    // eigenes Banner-Logo (optional, wie das Rahmen-Logo nur als PNG/JPEG/WebP-Data-URL)
-    var bannerLogoUrl = null;
-    if (raw.bannerLogo != null && raw.bannerLogo !== "") {
-      if (typeof raw.bannerLogo === "string" && raw.bannerLogo.length <= OWN_FILE_MAX * 1.4 && LOGO_DATA_URL.test(raw.bannerLogo)) bannerLogoUrl = raw.bannerLogo;
-      else dropped.push("bannerLogo");
-    }
     var name = typeof raw.name === "string" ? raw.name.trim().slice(0, NAME_MAX) : "";
-    return {
-      template: {
-        id: typeof raw.id === "string" && /^[a-z0-9-]{1,40}$/.test(raw.id) ? raw.id : newId(),
-        name: name || t("own.unnamed"),
-        design: design,
-        logo: logoUrl,
-        banner: b.banner,
-        bannerLogo: bannerLogoUrl,
-        created: typeof raw.created === "number" && isFinite(raw.created) ? raw.created : Date.now()
-      },
-      dropped: dropped
+    var tpl = {
+      id: typeof raw.id === "string" && /^[a-z0-9-]{1,40}$/.test(raw.id) ? raw.id : U.newId(),
+      name: name || t("own.unnamed"),
+      design: design,
+      logo: logoUrl,
+      created: typeof raw.created === "number" && isFinite(raw.created) ? raw.created : Date.now()
     };
-  }
-
-  function newId() {
-    return "v" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-  }
-
-  function loadOwnTemplates() {
-    var list = [];
-    try { list = JSON.parse(PBG.storage.get(OWN_KEY) || "[]"); } catch (e) { list = []; }
-    if (!Array.isArray(list)) list = [];
-    ownTemplates = list.map(function (raw) { var r = validateTemplate(raw); return r && r.template; }).filter(Boolean).slice(0, OWN_MAX);
-  }
-
-  /** Speichert die Liste; gibt null oder eine Fehlermeldung zurück. */
-  function persistOwnTemplates() {
-    var err = PBG.storage.trySet(OWN_KEY, JSON.stringify(ownTemplates));
-    return err === "full" ? t("own.errorFull") : err === "blocked" ? t("own.errorBlocked") : null;
+    // Banner-Teil älterer Vorlagen unverändert mitführen (wird hier nicht ausgewertet)
+    if (raw.banner && typeof raw.banner === "object" && !Array.isArray(raw.banner) && JSON.stringify(raw.banner).length <= 20000) tpl.banner = raw.banner;
+    if (U.validLogoDataUrl(raw.bannerLogo, OWN_FILE_MAX * 1.4)) tpl.bannerLogo = raw.bannerLogo;
+    return { template: tpl, dropped: dropped };
   }
 
   function currentTemplate(name) {
     var design = {};
     PBG.DESIGN_KEYS.forEach(function (k) { design[k] = state[k]; });
-    return {
-      id: newId(), name: name, design: design, logo: logo ? logoDataUrl : null,
-      banner: PBG.banner ? PBG.banner.get() : null, bannerLogo: PBG.banner ? PBG.banner.logoDataUrl() : null, created: Date.now()
-    };
+    return { id: U.newId(), name: name, design: design, logo: logo ? logoDataUrl : null, created: Date.now() };
   }
 
   /** Dekodiert das Logo einer Vorlage (Data-URL) zu einem Bild; Ergebnis wird zwischengespeichert. */
   function templateLogo(tpl) {
     if (!tpl.logo) return Promise.resolve(null);
-    if (!ownLogoImages[tpl.id]) {
-      ownLogoImages[tpl.id] = new Promise(function (resolve, reject) {
-        var img = new Image();
-        img.onload = function () { resolve(img); };
-        img.onerror = function () { reject(new Error("logo")); };
-        img.src = tpl.logo;
-      });
-    }
+    if (!ownLogoImages[tpl.id]) ownLogoImages[tpl.id] = U.loadDataUrl(tpl.logo);
     return ownLogoImages[tpl.id];
   }
 
   function applyOwnTemplate(tpl) {
-    // Vorlage ohne Banner: Banner mit eigenem Hintergrund bleibt unverändert (vor dem Wechsel des Rahmens festschreiben)
-    if (!tpl.banner && PBG.banner) PBG.banner.detachFromFrame();
     var keep = { zoom: state.zoom, offsetX: state.offsetX, offsetY: state.offsetY, bg: state.bg, exportSize: state.exportSize };
     var s0 = {};
     PBG.DESIGN_KEYS.forEach(function (k) { s0[k] = PBG.DEFAULTS[k]; });
     Object.assign(state, s0, tpl.design, keep);
     activePreset = "own:" + tpl.id;
-    // Vorlagen ohne Banner-Einstellungen lassen das aktuelle Banner unverändert
-    if (tpl.banner && PBG.banner) PBG.banner.set(tpl.banner);
-    if (tpl.bannerLogo && PBG.banner) PBG.banner.setLogoDataUrl(tpl.bannerLogo);
     endLinkOffer();
     templateLogo(tpl).then(function (img) {
       if (img) setLogoCanvas(toLogoCanvas(img, false)); else clearLogo();
@@ -657,200 +583,70 @@
     });
   }
 
-  function ownMsg(msg, isError) { setStatus(els.ownStatus, msg, isError); }
-
-  function slug(name) {
-    return (name.toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "").replace(/ß/g, "ss")
-      .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")).slice(0, 40);
-  }
-
-  function exportOwnTemplate(tpl) {
-    var data = { format: OWN_FORMAT, version: 1, name: tpl.name, design: tpl.design, logo: tpl.logo || null };
-    if (tpl.banner) data.banner = tpl.banner;
-    if (tpl.bannerLogo) data.bannerLogo = tpl.bannerLogo;
-    var blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement("a");
-    a.href = url;
-    var s = slug(tpl.name);
-    a.download = t("own.filename") + (s ? "-" + s : "") + ".json";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
-    ownMsg(t("own.exported", { name: tpl.name }));
-  }
-
-  function importOwnTemplate(file) {
-    if (!file) return;
-    if (file.size > OWN_FILE_MAX) { ownMsg(t("own.errorFileSize"), true); return; }
-    if (file.type && !/json/.test(file.type) && !/\.json$/i.test(file.name || "")) { ownMsg(t("own.errorFileType"), true); return; }
-    if (ownTemplates.length >= OWN_MAX) { ownMsg(t("own.limit", { max: OWN_MAX }), true); return; }
-    var reader = new FileReader();
-    reader.onerror = function () { ownMsg(t("own.errorFile"), true); };
-    reader.onload = function () {
-      var raw;
-      try { raw = JSON.parse(String(reader.result)); } catch (e) { ownMsg(t("own.errorFile"), true); return; }
-      var r = validateTemplate(raw);
-      if (!r || raw.format !== OWN_FORMAT) { ownMsg(t("own.errorFile"), true); return; }
-      var tpl = r.template;
-      tpl.id = newId();
-      var check = templateLogo(tpl).then(function () { return true; }, function () {
-        // Data-URL sieht gültig aus, lässt sich aber nicht als Bild öffnen
-        delete ownLogoImages[tpl.id];
-        tpl.logo = null;
-        r.dropped.push("logo");
-        return true;
-      });
-      check.then(function () {
-        ownTemplates.unshift(tpl);
-        var err = persistOwnTemplates();
-        if (err) { ownTemplates.shift(); ownMsg(err, true); return; }
-        renderOwnList();
-        applyOwnTemplate(tpl);
-        var msg = t("own.imported", { name: tpl.name });
-        if (r.dropped.length) msg += " " + t("own.importDropped", { fields: r.dropped.join(", ") });
-        ownMsg(msg, r.dropped.length > 0);
-      });
-    };
-    reader.readAsText(file);
-  }
-
-  function smallButton(label, cls, onClick) {
-    var b = document.createElement("button");
-    b.type = "button";
-    b.className = "text-button " + (cls || "");
-    b.textContent = label;
-    b.addEventListener("click", onClick);
-    return b;
-  }
-
-  function startRename(li, tpl) {
-    var form = document.createElement("form");
-    form.className = "own-rename";
-    var input = document.createElement("input");
-    input.type = "text";
-    input.maxLength = NAME_MAX;
-    input.value = tpl.name;
-    input.setAttribute("aria-label", t("own.renameLabel", { name: tpl.name }));
-    var ok = document.createElement("button");
-    ok.type = "submit";
-    ok.className = "btn btn-secondary";
-    ok.textContent = t("own.renameSave");
-    var cancel = smallButton(t("own.renameCancel"), "", function () { renderOwnList(); });
-    form.appendChild(input); form.appendChild(ok); form.appendChild(cancel);
-    form.addEventListener("submit", function (e) {
-      e.preventDefault();
-      var name = input.value.trim().slice(0, NAME_MAX);
-      if (!name) { ownMsg(t("own.nameMissing"), true); input.focus(); return; }
-      var old = tpl.name;
-      tpl.name = name;
-      var err = persistOwnTemplates();
-      if (err) { tpl.name = old; ownMsg(err, true); return; }
-      renderOwnList();
-      ownMsg(t("own.renamed", { name: name }));
-    });
-    li.querySelector(".own-actions").replaceWith(form);
-    input.focus();
-    input.select();
-  }
-
-  function renderOwnList() {
-    var list = els.ownList;
-    list.innerHTML = "";
-    els.ownEmpty.hidden = ownTemplates.length > 0;
-    var dpr = Math.min(window.devicePixelRatio || 1, 3);
-    var size = Math.round(56 * dpr);
-    ownTemplates.forEach(function (tpl) {
-      var li = document.createElement("li");
-      li.className = "own-item";
-      var btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "preset own-preset";
-      btn.dataset.key = "own:" + tpl.id;
-      btn.setAttribute("aria-pressed", "false");
-      btn.setAttribute("aria-label", t("own.apply", { name: tpl.name }));
-      var c = document.createElement("canvas");
-      c.setAttribute("aria-hidden", "true");
-      c.width = c.height = size;
-      var label = document.createElement("span");
-      label.textContent = tpl.name;
-      btn.appendChild(c);
-      btn.appendChild(label);
-      btn.addEventListener("click", function () { applyOwnTemplate(tpl); });
-      var s = Object.assign({ zoom: 1, offsetX: 0, offsetY: 0 }, PBG.DEFAULTS, tpl.design);
-      Promise.all([ensureFont(s), templateLogo(tpl).catch(function () { return null; })]).then(function (r) {
-        PBG.render(c.getContext("2d"), s, null, size, { logo: r[1] || null });
-      });
-      var actions = document.createElement("div");
-      actions.className = "own-actions";
-      actions.appendChild(smallButton(t("own.rename"), "", function () { startRename(li, tpl); }));
-      var linkBtn = smallButton(t("link.copyOwn"), "", function () {
-        openLinkDialog(Object.assign(defaultDesign(), tpl.design), !!tpl.logo || !!tpl.bannerLogo, tpl.banner);
-      });
-      linkBtn.setAttribute("aria-label", t("link.copyOwnLabel", { name: tpl.name }));
-      actions.appendChild(linkBtn);
-      actions.appendChild(smallButton(t("own.export"), "", function () { exportOwnTemplate(tpl); }));
-      actions.appendChild(smallButton(t("own.delete"), "danger", function () {
-        if (!window.confirm(t("own.confirmDelete", { name: tpl.name }))) return;
-        var idx = ownTemplates.indexOf(tpl);
-        ownTemplates.splice(idx, 1);
-        var err = persistOwnTemplates();
-        if (err) { ownTemplates.splice(idx, 0, tpl); ownMsg(err, true); return; }
-        delete ownLogoImages[tpl.id];
-        if (activePreset === "own:" + tpl.id) activePreset = null;
-        renderOwnList();
-        ownMsg(t("own.deleted", { name: tpl.name }));
-      }));
-      li.appendChild(btn);
-      li.appendChild(actions);
-      list.appendChild(li);
-    });
-    markPreset();
-  }
-
   /** Speichert das aktuelle Design als eigene Vorlage; report(msg, isError) zeigt das Ergebnis. Gibt true bei Erfolg zurück. */
   function saveOwnTemplate(name, report) {
-    if (ownTemplates.length >= OWN_MAX) { report(t("own.limit", { max: OWN_MAX }), true); return false; }
-    var tpl = currentTemplate(name);
-    ownTemplates.unshift(tpl);
-    var err = persistOwnTemplates();
-    if (err) { ownTemplates.shift(); report(err, true); return false; }
+    var tpl = own.save(name, report);
+    if (!tpl) return false;
     activePreset = "own:" + tpl.id;
-    renderOwnList();
-    report(t("own.saved", { name: name }), false);
+    markPreset();
     return true;
   }
 
   function bindOwnTemplates() {
-    loadOwnTemplates();
-    renderOwnList();
-    els.ownSaveForm.addEventListener("submit", function (e) {
-      e.preventDefault();
-      var name = els.ownName.value.trim().slice(0, NAME_MAX);
-      if (!name) { ownMsg(t("own.nameMissing"), true); els.ownName.focus(); return; }
-      if (saveOwnTemplate(name, ownMsg)) els.ownName.value = "";
+    own = PBG.OwnList({
+      key: OWN_KEY, type: "frame", version: 1,
+      els: { list: els.ownList, empty: els.ownEmpty, form: els.ownSaveForm, name: els.ownName, importInput: els.ownImport, status: els.ownStatus },
+      validate: validateTemplate,
+      current: function (name) { var tpl = currentTemplate(name); activePreset = "own:" + tpl.id; return tpl; },
+      apply: applyOwnTemplate,
+      thumb: function (c, tpl, size) {
+        c.width = c.height = size;
+        var s = Object.assign({ zoom: 1, offsetX: 0, offsetY: 0 }, PBG.DEFAULTS, tpl.design);
+        Promise.all([ensureFont(s), templateLogo(tpl).catch(function () { return null; })]).then(function (r) {
+          PBG.render(c.getContext("2d"), s, null, size, { logo: r[1] || null });
+        });
+      },
+      link: function (tpl) { openLinkDialog(Object.assign(defaultDesign(), tpl.design), !!tpl.logo); },
+      exportData: function (tpl) { return { design: tpl.design, logo: tpl.logo || null }; },
+      /** Nur Rahmen-Dateien; ältere Dateien mit Rahmen und Banner: nur den Rahmen-Teil importieren, Hinweis auf die Banner-Seite. */
+      prepareImport: function (raw) {
+        var toBanner = { href: toolUrl("banner"), label: t("nav.toBanner") };
+        if (raw.type === "banner") return { error: t("own.wrongTypeBanner"), goto: toBanner };
+        if (raw.type != null && raw.type !== "frame") return { error: t("own.errorFile") };
+        var copy = Object.assign({}, raw);
+        var hasBanner = !!(raw.banner && typeof raw.banner === "object");
+        delete copy.type; delete copy.banner; delete copy.bannerLogo;
+        return { raw: copy, note: hasBanner ? t("own.alsoBanner") : null, noteGoto: hasBanner ? toBanner : null };
+      },
+      checkLogos: function (tpl, dropped) {
+        return templateLogo(tpl).then(function () {}, function () {
+          // Data-URL sieht gültig aus, lässt sich aber nicht als Bild öffnen
+          delete ownLogoImages[tpl.id];
+          tpl.logo = null;
+          dropped.push("logo");
+        });
+      },
+      onDelete: function (tpl) {
+        delete ownLogoImages[tpl.id];
+        if (activePreset === "own:" + tpl.id) activePreset = null;
+      },
+      onChange: markPreset
     });
-    els.ownImport.addEventListener("change", function () {
-      importOwnTemplate(els.ownImport.files && els.ownImport.files[0]);
-      els.ownImport.value = "";
-    });
+    own.bind();
   }
 
-  // ---------- Design als Link (#d=…): nur Design-Einstellungen, nie Foto oder Logo ----------
+  // ---------- Design als Link (#d=…, links.js): nur Design-Einstellungen, nie Foto oder Logo ----------
   /*
-   * Format: https://…/#d=<base64url(JSON)>, JSON = { "v": 1, <PBG.DESIGN_KEYS>…, "banner": {…} } ohne Leerzeichen.
-   * „banner“ ist optional und enthält nur die vom Standard abweichenden Banner-Einstellungen (nie Logo oder Bild);
-   * ältere Links ohne „banner“ lassen das Banner unverändert. Weil das Format nur ergänzt wurde, bleibt es Version 1.
+   * Format: https://…/#d=<base64url(JSON)>, JSON = { "v": 1, <PBG.DESIGN_KEYS>… } ohne Leerzeichen.
    * „v“ ist die Formatversion: Wird das Format später inkompatibel geändert, bekommt es eine neue Nummer, und ältere
    * Links werden weiter anhand ihrer Nummer gelesen. Das Fragment (#…) schickt der Browser nie an den Server.
+   * Ältere Links können zusätzlich „banner“ enthalten (aus der Zeit, als das Banner auf dieser Seite lag): Dann lädt
+   * diese Seite den Rahmen und bietet an, die Banner-Seite mit genau diesem Link zu öffnen – das Banner wertet nur sie aus.
    */
   var LINK_VERSION = 1;
   /*
-   * Höchstlänge des Werts nach „d=“. Typische Links (Rahmen + Banner mit drei Textzeilen) bleiben unter 2000 Zeichen.
-   * Im ungünstigsten gültigen Fall – alle fünf Textfelder (60 + 40 + 60 + 100 + 80 Zeichen) voll mit Zeichen, die in
-   * UTF-8 3 Byte brauchen, dazu alle übrigen Einstellungen – sind es rund 3200 Zeichen; die Grenze liegt mit 4000
-   * darüber, damit jedes gültige Design als Link funktioniert, und begrenzt trotzdem den Aufwand beim Prüfen.
+   * Höchstlänge des Werts nach „d=“. Reine Rahmen-Links sind deutlich kürzer; ältere Links mit Banner können im
+   * ungünstigsten gültigen Fall rund 3200 Zeichen erreichen und sollen weiter gelesen werden.
    */
   var LINK_MAX = 4000;
   /** Beschriftungen für die Meldung, welche Angaben aus einem Link verworfen wurden. */
@@ -859,27 +655,8 @@
     gradient: "ring.gradient", ringWidth: "ring.width", ringLength: "ring.length", ringRotation: "ring.rotation", fade: "ring.fade",
     opacity: "ring.opacity", icon: "icon.label", iconPos: "icon.pos", logoPos: "logo.pos", logoSize: "logo.size",
     shape: "shape.label", textTop: "text.top", sizeTop: "text.sizeTop" };
-  var BANNER_FIELD_LABELS = { format: "banner.format", title: "banner.title", subtitle: "banner.subtitle", align: "banner.align",
-    bg: "banner.bg", bgColor: "banner.bgColorLabel", color1: "banner.color1", color2: "banner.color2", gradient: "banner.gradient",
-    gradDir: "banner.gradDir", logo: "banner.logoHeading", logoPos: "banner.logoPos", logoSize: "banner.logoSize", extra: "banner.extra",
-    extraIcon: "banner.extraIcon", titleSize: "banner.titleSize", subtitleSize: "banner.subtitleSize", extraSize: "banner.extraSize",
-    font: "banner.font", bold: "banner.bold", textColor: "banner.textColor" };
-
-  /** Verständliche Bezeichnung eines verworfenen Werts (Rahmen-Schlüssel oder „banner.<schlüssel>“). */
-  function fieldLabel(k) {
-    var bm = /^banner\.(.+)$/.exec(k);
-    if (bm) return t("banner.short") + ": " + (BANNER_FIELD_LABELS[bm[1]] ? t(BANNER_FIELD_LABELS[bm[1]]) : bm[1]);
-    if (k === "banner") return t("banner.short");
-    return FIELD_LABELS[k] ? t(FIELD_LABELS[k]) : k;
-  }
-
-  /** Banner-Einstellungen für einen Link: nur Abweichungen vom Standard; „eigenes Logo“ entfällt (Logos nie im Link). */
-  function linkBanner(b) {
-    var d = PBG.bannerDiff(b);
-    if (d && d.logo === "own") { delete d.logo; if (!Object.keys(d).length) d = null; }
-    return d;
-  }
   var linkFromUrl = false;   // aktuelles Design stammt aus einem Link (für „Als eigene Vorlage speichern“)
+  var linkGoto = null;       // Button „Banner öffnen“ bei älteren Links mit Banner
 
   function defaultDesign() {
     var d = {};
@@ -887,57 +664,33 @@
     return d;
   }
 
-  function base64urlEncode(str) {
-    var bytes = new TextEncoder().encode(str);
-    var bin = "";
-    for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-    return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-  }
-
-  /** Wirft bei ungültigen Zeichen, kaputtem Base64 oder ungültigem UTF-8. */
-  function base64urlDecode(s) {
-    if (!/^[A-Za-z0-9_-]+$/.test(s)) throw new Error("chars");
-    var b64 = s.replace(/-/g, "+").replace(/_/g, "/");
-    while (b64.length % 4) b64 += "=";
-    var bin = atob(b64);
-    var bytes = new Uint8Array(bin.length);
-    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-  }
-
   /** Link zur aktuellen Seite (Sprache bleibt erhalten) mit dem Design im Fragment. */
-  function designLink(design, banner) {
+  function designLink(design) {
     var data = { v: LINK_VERSION };
     PBG.DESIGN_KEYS.forEach(function (k) { if (design[k] !== undefined) data[k] = design[k]; });
-    var b = banner ? linkBanner(banner) : null;
-    if (b) data.banner = b;
-    return location.origin + location.pathname + "#d=" + base64urlEncode(JSON.stringify(data));
+    return PBG.Links.url("d", data);
   }
 
   /**
    * Liest ein Design aus dem Fragment. Gibt null zurück, wenn es kein Design-Link ist, sonst
-   * { error: i18n-Schlüssel } oder { design, dropped: [Schlüssel], unknown: Anzahl unbekannter Angaben }.
+   * { error: i18n-Schlüssel } oder { design, dropped, unknown, hasBanner, raw }.
    * Geprüft wird wie beim Datei-Import (validValue): nur bekannte Schlüssel, Werte im erlaubten Bereich.
    */
   function parseDesignLink(hash) {
-    var m = /^#(?:.*&)?d=([^&]*)/.exec(hash || "");
-    if (!m) return null;
-    var raw = m[1];
-    if (raw.length > LINK_MAX) return { error: "link.errorTooLong" };
-    var data;
-    try { data = JSON.parse(base64urlDecode(raw)); } catch (e) { return { error: "link.errorInvalid" }; }
-    if (!data || typeof data !== "object" || Array.isArray(data)) return { error: "link.errorInvalid" };
+    var r = PBG.Links.read("d", LINK_MAX, hash);
+    if (!r || r.error) return r;
+    var data = r.data;
     if (data.v !== LINK_VERSION) return { error: typeof data.v === "number" ? "link.errorVersion" : "link.errorInvalid" };
-    var design = {}, dropped = [], unknown = 0, banner = null;
+    var design = {}, dropped = [], unknown = 0, hasBanner = false;
     Object.keys(data).forEach(function (k) {
       if (k === "v") return;
-      if (k === "banner") { var vb = PBG.validateBanner(data.banner); banner = vb.banner; dropped = dropped.concat(vb.dropped); return; }
+      if (k === "banner") { hasBanner = !!(data.banner && typeof data.banner === "object" && !Array.isArray(data.banner)); if (!hasBanner) unknown++; return; }
       if (PBG.DESIGN_KEYS.indexOf(k) < 0) { unknown++; return; }
       var v = validValue(k, data[k]);
       if (v === undefined) dropped.push(k); else design[k] = v;
     });
     if (!Object.keys(design).length) return { error: "link.errorInvalid" };
-    return { design: design, dropped: dropped, unknown: unknown, banner: banner };
+    return { design: design, dropped: dropped, unknown: unknown, hasBanner: hasBanner, raw: r.raw };
   }
 
   /** Übernimmt ein Design; Foto-Ausschnitt, Export-Einstellungen und ein vorhandenes Logo bleiben erhalten. */
@@ -953,84 +706,48 @@
   /** Andere Vorlage gewählt: „Als eigene Vorlage speichern“ bezieht sich nicht mehr auf das Design aus dem Link. */
   function endLinkOffer() {
     linkFromUrl = false;
-    els.linkNoticeSave.hidden = true;
+    PBG.Links.endSave();
   }
 
-  function showLinkNotice(msg, isError, offerSave) {
-    els.linkNoticeText.textContent = msg;
-    els.linkNotice.classList.toggle("error", !!isError);
-    els.linkNoticeSave.hidden = !offerSave;
-    els.linkNotice.hidden = false;
+  function saveFromLink() {
+    if (!linkFromUrl) return;
+    if (saveOwnTemplate(t("link.defaultName"), function (msg, isError) { PBG.Links.notice(msg, isError, { goto: linkGoto }); })) linkFromUrl = false;
   }
 
   /** Lädt ein Design aus #d=… und entfernt das Fragment sofort aus der Adresse. Gibt true zurück, wenn ein Design geladen wurde. */
   function loadLinkFromHash() {
     var r = parseDesignLink(location.hash);
     if (!r) return false;
-    // Fragment entfernen (auch bei Fehlern), damit es nicht versehentlich mit der Adresse weitergeteilt wird
-    try { history.replaceState(history.state, "", location.pathname + location.search); } catch (e) { /* alte Browser */ }
+    PBG.Links.strip();
     if (r.error) {
       linkFromUrl = false;
-      showLinkNotice(t(r.error, { app: cfg.appName }), true, false);
+      PBG.Links.notice(t(r.error, { app: cfg.appName }), true);
       return false;
     }
-    // Link ohne Banner-Einstellungen (z. B. ältere Links): Banner bleibt, wie es ist – bei eigenem Hintergrund
-    // vor dem Wechsel des Rahmens festschreiben
-    if (!r.banner && PBG.banner) PBG.banner.detachFromFrame();
     applyDesign(r.design);
-    // banner.js lädt nach app.js: beim Öffnen der Seite die Banner-Einstellungen bereitlegen, banner.js übernimmt sie
-    if (r.banner) { if (PBG.banner) PBG.banner.set(r.banner); else PBG.pendingBanner = r.banner; }
     linkFromUrl = true;
-    var fields = r.dropped.map(fieldLabel);
-    if (r.unknown) fields.push(t("link.unknown", { count: r.unknown }));
-    var msg = t("link.loaded") + (fields.length ? " " + t("link.partial", { fields: fields.join(", ") }) : "");
-    showLinkNotice(msg, fields.length > 0, true);
+    var m = PBG.Links.loadedMessage(r.dropped.map(function (k) { return FIELD_LABELS[k] ? t(FIELD_LABELS[k]) : k; }), r.unknown);
+    // Älterer Link mit Banner: die Banner-Seite mit genau diesem Link öffnen
+    linkGoto = r.hasBanner ? { href: toolUrl("banner") + "#d=" + r.raw, label: t("link.openBanner") } : null;
+    PBG.Links.notice(m.text + (r.hasBanner ? " " + t("link.hasBanner") : ""), m.partial, { save: saveFromLink, goto: linkGoto });
     return true;
   }
 
-  function openLinkDialog(design, hasLogo, banner) {
-    els.linkUrl.value = designLink(design, banner);
-    els.linkLogoNote.hidden = !hasLogo;
-    setStatus(els.linkStatus, "");
-    showDialog(els.linkDialog);
-    copyLink();
-  }
-
-  function copyLink() {
-    var url = els.linkUrl.value;
-    var ok = function () { setStatus(els.linkStatus, t("link.copied")); els.linkUrl.select(); };
-    var fallback = function () {
-      // execCommand im Dialog selbst, weil der Rest der Seite bei offenem Dialog nicht bedienbar ist
-      els.linkUrl.focus();
-      els.linkUrl.select();
-      var done = false;
-      try { done = document.execCommand("copy"); } catch (e) { done = false; }
-      if (done) ok(); else setStatus(els.linkStatus, t("link.copyFailed"), true);
-    };
-    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(ok, fallback);
-    else fallback();
+  function openLinkDialog(design, hasLogo) {
+    PBG.Links.openDialog(designLink(design), hasLogo);
   }
 
   function bindLinks() {
+    PBG.Links.bind();
     els.linkDesign.addEventListener("click", function () {
       var d = {};
       PBG.DESIGN_KEYS.forEach(function (k) { d[k] = state[k]; });
-      var b = PBG.banner ? PBG.banner.get() : null;
-      openLinkDialog(d, !!logo || !!(b && b.logo === "own" && PBG.banner.hasOwnLogo()), b);
-    });
-    els.linkCopy.addEventListener("click", copyLink);
-    els.linkUrl.addEventListener("focus", function () { els.linkUrl.select(); });
-    els.linkDialog.addEventListener("click", function (e) {
-      if (e.target === els.linkDialog) closeDialog(els.linkDialog);
-    });
-    els.linkNoticeClose.addEventListener("click", function () { els.linkNotice.hidden = true; });
-    els.linkNoticeSave.addEventListener("click", function () {
-      if (!linkFromUrl) return;
-      if (saveOwnTemplate(t("link.defaultName"), function (msg, isError) { showLinkNotice(msg, isError, false); })) linkFromUrl = false;
+      openLinkDialog(d, !!logo);
     });
     // Link in einem schon offenen Tab eingefügt: Nur das Fragment ändert sich, die Seite lädt nicht neu
     window.addEventListener("hashchange", function () {
-      if (loadLinkFromHash() || !els.linkNotice.hidden) els.linkNotice.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      var n = PBG.Links.noticeElement();
+      if (loadLinkFromHash() || !n.hidden) n.scrollIntoView({ behavior: "smooth", block: "nearest" });
     });
   }
 
@@ -1039,18 +756,7 @@
     return /hei[cf]/i.test(file.type) || /\.hei[cf]$/i.test(file.name || "");
   }
 
-  function decodeImage(blob) {
-    return new Promise(function (resolve, reject) {
-      var url = URL.createObjectURL(blob);
-      var img = new Image();
-      img.onload = function () {
-        URL.revokeObjectURL(url);
-        if (img.naturalWidth && img.naturalHeight) resolve(img); else reject(new Error("empty"));
-      };
-      img.onerror = function () { URL.revokeObjectURL(url); reject(new Error("decode")); };
-      img.src = url;
-    });
-  }
+  var decodeImage = U.decodeImage;
 
   var heicLib = null;
   function loadHeicLib() {
@@ -1152,28 +858,8 @@
   }
 
   // ---------- Logo: nur im Browser, auf höchstens 512 px verkleinert ----------
-  function isSvg(file) {
-    return file.type === "image/svg+xml" || /\.svg$/i.test(file.name || "");
-  }
-
-  function isLogoFile(file) {
-    return /^image\/(png|jpeg|webp|svg\+xml)$/.test(file.type) || /\.(png|jpe?g|webp|svg)$/i.test(file.name || "");
-  }
-
   /** Zeichnet das Logo auf einen Canvas mit höchstens MAX_LOGO_SIDE px. SVGs werden auf diese Größe gerastert. */
-  function toLogoCanvas(img, svg) {
-    var w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
-    if (!w || !h) { w = h = MAX_LOGO_SIDE; } // SVG ohne eigene Größe
-    var scale = MAX_LOGO_SIDE / Math.max(w, h);
-    if (!svg) scale = Math.min(1, scale);   // Pixelbilder nie vergrößern
-    var c = document.createElement("canvas");
-    c.width = Math.max(1, Math.round(w * scale));
-    c.height = Math.max(1, Math.round(h * scale));
-    var ctx = c.getContext("2d");
-    ctx.imageSmoothingQuality = "high";
-    ctx.drawImage(img, 0, 0, c.width, c.height);
-    return c;
-  }
+  function toLogoCanvas(img, svg) { return U.toCanvas(img, MAX_LOGO_SIDE, svg); }
 
   /** Setzt das Logo aus einem Canvas; die Data-URL dient zugleich als Prüfung, dass der Canvas exportierbar ist. */
   function setLogoCanvas(c) {
@@ -1194,14 +880,11 @@
 
   function loadLogoFile(file) {
     if (!file) return;
-    if (!isLogoFile(file)) { setStatus(els.logoStatus, t("logo.errorType"), true); return; }
+    if (!U.isLogoFile(file)) { setStatus(els.logoStatus, t("logo.errorType"), true); return; }
     if (file.size > MAX_LOGO_FILE_MB * 1024 * 1024) { setStatus(els.logoStatus, t("logo.errorSize", { max: MAX_LOGO_FILE_MB }), true); return; }
     setStatus(els.logoStatus, t("logo.loading"));
-    var svg = isSvg(file);
-    // SVG ausdrücklich als image/svg+xml laden, sonst zeigen manche Browser es nicht an
-    var blob = svg && file.type !== "image/svg+xml" ? new Blob([file], { type: "image/svg+xml" }) : file;
-    decodeImage(blob).then(function (img) {
-      setLogoCanvas(toLogoCanvas(img, svg));
+    U.loadLogoFile(file, MAX_LOGO_SIDE, MAX_LOGO_FILE_MB).then(function (c) {
+      setLogoCanvas(c);
       setStatus(els.logoStatus, t("logo.loaded", { name: file.name || "" }));
     }).catch(function () {
       setStatus(els.logoStatus, t("logo.error"), true);
@@ -1473,7 +1156,7 @@
     return PBG.presetByKey(key) || PBG.PRESETS[0];
   }
 
-  /** Schnittstelle für das Profil-Banner (banner.js): aktuelles Design und Logo, nur lesend. */
+  /** Schnittstelle für „Mehrere Fotos“ (batch.js): aktuelles Design, Logo und Foto des Editors. */
   PBG.editor = {
     state: function () { return state; },
     logo: function () { return logo; },
@@ -1528,7 +1211,7 @@
     if (window.matchMedia) {
       var mq = function () {
         var m = window.matchMedia("(resolution: " + (window.devicePixelRatio || 1) + "dppx)");
-        var onChange = function () { requestRender(); renderPresetThumbs(); renderOwnList(); mq(); };
+        var onChange = function () { requestRender(); renderPresetThumbs(); own.render(); mq(); };
         if (m.addEventListener) m.addEventListener("change", onChange, { once: true });
       };
       mq();

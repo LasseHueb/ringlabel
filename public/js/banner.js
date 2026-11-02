@@ -1,39 +1,71 @@
 /*
- * Profil-Banner (Abschnitt #banner unter dem Editor).
- * Standard: Farben, Schrift, Textfarbe und Logo kommen aus dem Rahmen (PBG.editor, app.js). Optional eigene
- * Hintergrundfarbe (auch Verlauf, Weiß, Hellgrau, transparent), eigenes Logo, Zusatzzeile mit Symbol, eigene
- * Schriftgrößen und Banner-Vorlagen (PBG.BANNER_PRESETS).
- * Hintergrundbilder und Logos werden nur im Browser verarbeitet; Hintergrundbilder werden nie gespeichert, ein eigenes
- * Banner-Logo nur in „Meine Vorlagen“ (lokal) – nie in Design-Links.
- * Abwärtskompatibel: Mit den Standardwerten (PBG.BANNER_DEFAULTS) entsteht dasselbe Banner wie in früheren Versionen.
+ * Banner-Editor (/banner/ und /en/banner/) – eigenständiges Werkzeug, unabhängig vom Rahmen-Editor.
+ * Eigene Standardwerte (PBG.BANNER_DEFAULTS, banner-model.js) für Farbe, Verlauf, Schrift, Textfarbe und Logo;
+ * Hintergrund als eigene Farbe (auch Verlauf), Weiß, Hellgrau oder transparent, dazu Muster oder ein eigenes Bild,
+ * drei Textzeilen, Logo-Positionen und Banner-Vorlagen. „Farben aus einer Rahmen-Vorlage übernehmen“ kopiert auf
+ * Wunsch Farben, Verlauf und Schrift einer Rahmen-Vorlage – sonst übernimmt das Banner nichts vom Rahmen.
+ *
+ * Datenschutz: Hintergrundbilder und Logos werden nur im Browser verarbeitet. Hintergrundbilder werden nie gespeichert,
+ * ein Logo nur in „Meine Vorlagen“ (lokaler Speicher, Schlüssel rl-own-banners) – nie in Banner-Links (#b=…).
+ *
+ * Übernahme älterer Daten (aus der Zeit, als das Banner auf der Rahmen-Seite lag): Beim ersten Öffnen werden die
+ * Banner-Teile alter eigener Vorlagen (rl-own-templates) einmalig als eigene Banner-Vorlagen übernommen (Merker
+ * rl-banners-migrated); alte Dateien und alte Links (#d=… mit Banner) werden beim Import bzw. Öffnen umgerechnet.
+ * PBG.bannerFromLegacy setzt dabei die damaligen Rahmen-Werte fest ein – das Banner sieht genauso aus wie vorher.
  */
 (function () {
   "use strict";
 
   var $ = function (id) { return document.getElementById(id); };
-  if (!$("banner") || !PBG.editor) return;
-  var t = PBG.t;
+  if (!$("banner-editor")) return;
+  var t = PBG.t, U = PBG.util;
 
   var MAX_IMAGE_SIDE = 4000;   // größere Hintergrundbilder werden beim Laden verkleinert
-  var MAX_LOGO_SIDE = 1024;    // eigene Banner-Logos werden auf höchstens 1024 px verkleinert
+  var MAX_LOGO_SIDE = 1024;    // Logos werden auf höchstens 1024 px verkleinert
   var STORE_LOGO_SIDE = 512;   // … und für „Meine Vorlagen“ auf 512 px (lokaler Speicher ist knapp)
   var MAX_LOGO_FILE_MB = 10;
+  var LOGO_URL_MAX = 1024 * 1024 * 1.4;   // Logo als Data-URL in Vorlagen und Dateien
   var MAX_ZOOM = 4;
   var MIN_TITLE_SCALE = 0.5;
   var MIN_EXTRA_SCALE = 0.5;
+
+  var OWN_KEY = "rl-own-banners";          // eigene Banner-Vorlagen
+  var MIGRATED_KEY = "rl-banners-migrated"; // Merker: alte Vorlagen wurden übernommen
+  var FRAME_OWN_KEY = "rl-own-templates";   // eigene Rahmen-Vorlagen (nur gelesen)
+  var START_TEMPLATE = "b-job-klar";
+
+  /*
+   * Banner-Link: https://…/banner/#b=<base64url(JSON)>, JSON = { "v": 1, <nur vom Standard abweichende Werte> }.
+   * „v“ ist die Formatversion der Banner-Links (unabhängig von den Rahmen-Links #d=…). Nie Logo oder Hintergrundbild.
+   */
+  var LINK_VERSION = 1;
+  var LINK_MAX = 3000;          // Banner-Links: alle Werte zusammen bleiben deutlich darunter
+  var LEGACY_LINK_MAX = 4000;   // ältere Links (#d=…) mit Rahmen und Banner
+  /** Beschriftungen für Meldungen über verworfene Angaben. */
+  var FIELD_LABELS = {
+    format: "banner.format", title: "banner.title", subtitle: "banner.subtitle", align: "banner.align", bg: "banner.bg",
+    bgColor: "banner.bgColorLabel", color1: "banner.color1", color2: "banner.color2", gradient: "banner.gradient",
+    gradDir: "banner.gradDir", logo: "banner.logoHeading", logoPos: "banner.logoPos", logoSize: "banner.logoSize",
+    extra: "banner.extra", extraIcon: "banner.extraIcon", titleSize: "banner.titleSize", subtitleSize: "banner.subtitleSize",
+    extraSize: "banner.extraSize", font: "banner.font", bold: "banner.bold", textColor: "banner.textColor"
+  };
 
   // ---------- Zustand ----------
   var settings = Object.assign({}, PBG.BANNER_DEFAULTS);
   var image = null;            // Hintergrundbild als Canvas (nur im Arbeitsspeicher)
   var imageMode = false;       // Hintergrund „Eigenes Bild“ (wird nicht gespeichert)
   var view = { zoom: 1, offsetX: 0, offsetY: 0 };
-  var ownLogo = null;          // eigenes Banner-Logo als Canvas (nur im Browser)
-  var activeTemplate = null;
+  var ownLogo = null;          // Logo als Canvas (nur im Browser)
+  var activeTemplate = null;   // Schlüssel der Banner-Vorlage oder "own:<id>"
+  var own = null;              // PBG.OwnList
+  var ownLogoImages = {};      // id → dekodiertes Logo einer eigenen Vorlage
+  var linkFromUrl = false;     // aktuelles Banner stammt aus einem Link (für „Als eigene Vorlage speichern“)
 
   var els = {
     canvas: $("banner-preview"), stage: $("banner-stage"),
     title: $("banner-title"), subtitle: $("banner-subtitle"),
     font: $("banner-font"), bold: $("banner-bold"), ownTextColor: $("banner-own-textcolor"), textColorField: $("banner-textcolor-field"),
+    textColorAuto: $("banner-textcolor-auto"),
     textColor: $("banner-textcolor"), textColorHex: $("banner-textcolor-hex"), extra: $("banner-extra"), extraIcon: $("banner-extra-icon"),
     imageInput: $("banner-image-input"), imageRemove: $("banner-image-remove"), imageStatus: $("banner-image-status"),
     imageSettings: $("banner-image-settings"), zoom: $("banner-zoom"), zoomOut: $("banner-zoom-out"),
@@ -41,66 +73,49 @@
     color2: $("banner-color2"), color2Hex: $("banner-color2-hex"), gradient: $("banner-gradient"), color2Field: $("banner-color2-field"),
     gradDirField: $("banner-graddir-field"), transparentHint: $("banner-transparent-hint"),
     logoInput: $("banner-logo-input"), logoRemove: $("banner-logo-remove"), logoStatus: $("banner-logo-status"),
-    logoUpload: $("banner-logo-upload"), logoSettings: $("banner-logo-settings"), logoPos: $("banner-logo-pos"), logoSize: $("banner-logo-size"), logoSizeOut: $("banner-logo-size-out"),
+    logoUpload: $("banner-logo-upload"), logoSettings: $("banner-logo-settings"), logoPos: $("banner-logo-pos"), logoSize: $("banner-logo-size"),
     titleSize: $("banner-title-size"), subtitleSize: $("banner-subtitle-size"), extraSize: $("banner-extra-size"),
-    frameColors: $("banner-frame-colors"), presets: $("banner-presets"), presetsCurrent: $("banner-presets-current"), currentSection: $("banner-current"),
-    download: $("banner-download"), downloadLabel: $("banner-download-label"), status: $("banner-status"), warning: $("banner-warning")
+    presets: $("banner-presets"), presetsCurrent: $("banner-presets-current"), currentSection: $("banner-current"),
+    download: $("banner-download"), downloadLabel: $("banner-download-label"), status: $("banner-status"), warning: $("banner-warning"),
+    ownList: $("own-list"), ownEmpty: $("own-empty"), ownSaveForm: $("own-save-form"), ownName: $("own-name"), ownImport: $("own-import"),
+    ownStatus: $("own-status"), link: $("banner-link"),
+    fromFrame: $("banner-from-frame"), frameDialog: $("frame-colors-dialog"), frameOwnWrap: $("frame-colors-own-wrap"),
+    frameOwn: $("frame-colors-own"), frameBuiltin: $("frame-colors-builtin")
   };
 
   // ---------- Hilfsfunktionen ----------
   function fmtOf(b) { return PBG.BANNER_FORMATS[b.format] || PBG.BANNER_FORMATS["4x1"]; }
   function format() { return fmtOf(settings); }
-  function clamp(v, a, b) { return Math.min(b, Math.max(a, v)); }
-
-  function luminance(hex) {
-    return PBG.color.hexToRgb(hex).reduce(function (sum, c, i) {
-      c /= 255;
-      c = c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
-      return sum + c * [0.2126, 0.7152, 0.0722][i];
-    }, 0);
-  }
-
-  function contrast(a, b) {
-    var la = luminance(a), lb = luminance(b);
-    return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
-  }
-
-  function normalizeHex(v) {
-    v = String(v || "").trim().replace(/^#/, "");
-    if (/^[0-9a-f]{3}$/i.test(v)) v = v.replace(/(.)/g, "$1$1");
-    return /^[0-9a-f]{6}$/i.test(v) ? "#" + v.toLowerCase() : null;
-  }
+  var clamp = U.clamp, luminance = U.luminance, contrast = U.contrast;
+  var DARK_TEXT = "#111827";
 
   /** Hintergrundfarben des Banners: [Farbe 1, Farbe 2]; null bei „Transparent“. */
-  function bgColors(s, b) {
+  function bgColors(b) {
     if (b.bgColor === "transparent") return null;
-    if (b.bgColor === "custom") return [b.color1, b.gradient ? b.color2 : b.color1];
     if (PBG.BANNER_SOLID[b.bgColor]) return [PBG.BANNER_SOLID[b.bgColor], PBG.BANNER_SOLID[b.bgColor]];
-    return [s.ringColor, s.gradient ? s.ringColor2 : s.ringColor];
+    return [b.color1, b.gradient ? b.color2 : b.color1];
   }
 
   /**
-   * Textfarbe: die des Rahmens, solange sie sich auf dem Hintergrund gut abhebt (Kontrast ≥ 3:1 zu allen Hintergrund-
-   * farben); sonst Weiß oder fast Schwarz. Bei „Transparent“ bleibt die Rahmenfarbe; warnTransparent meldet, wenn sie
-   * auf weißem oder schwarzem Untergrund schlecht lesbar wäre.
+   * Textfarbe: die eigene, falls gewählt (mit Hinweis bei geringem Kontrast). Sonst automatisch Weiß oder fast Schwarz –
+   * je nachdem, was sich auf allen Hintergrundfarben besser abhebt. Bei „Transparent“ ohne eigene Farbe: fast Schwarz,
+   * mit Hinweis, weil die Plattform die Fläche schwarz füllen könnte.
    */
-  function textColor(s, b) {
-    var cols = bgColors(s, b);
+  function textColor(b) {
+    var cols = bgColors(b);
     if (b.textColor) {
-      // eigene Textfarbe: wird verwendet wie gewählt; Hinweis bei geringem Kontrast
       var low = cols ? Math.min.apply(null, cols.map(function (x) { return contrast(b.textColor, x); })) < 3
         : contrast(b.textColor, "#ffffff") < 3 || contrast(b.textColor, "#000000") < 3;
-      return { color: b.textColor, auto: false, lowContrast: !!cols && low, warnTransparent: !cols && low };
+      return { color: b.textColor, lowContrast: !!cols && low, warnTransparent: !cols && low };
     }
-    if (!cols) {
-      return { color: s.textColor, auto: false, warnTransparent: contrast(s.textColor, "#ffffff") < 3 || contrast(s.textColor, "#000000") < 3 };
-    }
+    if (!cols) return { color: DARK_TEXT, warnTransparent: true };
     var bgs = cols[0] === cols[1] ? [cols[0]] : cols;
     var worst = function (c) { return Math.min.apply(null, bgs.map(function (x) { return contrast(c, x); })); };
-    if (worst(s.textColor) >= 3) return { color: s.textColor, auto: false };
-    var light = "#ffffff", dark = "#111827";
-    return { color: worst(light) >= worst(dark) ? light : dark, auto: true };
+    return { color: worst("#ffffff") >= worst(DARK_TEXT) ? "#ffffff" : DARK_TEXT };
   }
+
+  /** Schrift und Schriftstärke der Überschrift. */
+  function styleOf(b) { return { font: b.font, bold: b.bold === "bold" }; }
 
   function weight(s, bold) {
     var f = PBG.fontById(s.font);
@@ -123,20 +138,14 @@
     return lines.length <= maxLines ? lines : null;
   }
 
-  function logoSource(b) {
-    if (b.logo === "none") return null;
-    if (b.logo === "own") return ownLogo;
-    return PBG.editor.logo();
-  }
-
   function rectsOverlap(a, b) {
     return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
   }
 
   // ---------- Zeichnen ----------
-  /** Hintergrund: Farbe/Verlauf (Rahmen oder eigene Wahl), optional dezentes Muster oder eigenes Bild mit Farbschleier. */
-  function drawBackground(ctx, s, b, W, H, u, bg, img, tc) {
-    var cols = bgColors(s, b);
+  /** Hintergrund: Farbe/Verlauf, optional dezentes Muster oder eigenes Bild mit Farbschleier. */
+  function drawBackground(ctx, b, W, H, u, bg, img, tc) {
+    var cols = bgColors(b);
     var c1, c2;
     if (cols) {
       c1 = cols[0]; c2 = cols[1];
@@ -363,32 +372,25 @@
   /**
    * Zeichnet das Banner in voller Größe (W × H) oder verkleinert.
    * opts.overlay: Markierung des sicheren Bereichs zeichnen (Vorschau); opts.settings: andere Einstellungen
-   * (Vorschaubilder der Banner-Vorlagen, ohne Hintergrundbild).
+   * (Vorschaubilder der Vorlagen, ohne Hintergrundbild) mit opts.logo als Logo.
    */
-  /** Stil für das Banner: Schrift und Schriftstärke des Rahmens, sofern im Banner nichts Eigenes gewählt ist. */
-  function bannerStyle(b) {
-    var s = PBG.editor.state();
-    if (!b.font && b.bold === "frame") return s;
-    return Object.assign({}, s, { font: b.font || s.font, bold: b.bold === "frame" ? s.bold : b.bold === "bold" });
-  }
-
   function render(ctx, W, H, opts) {
     opts = opts || {};
     var b = opts.settings || settings;
-    var s = bannerStyle(b);
-    var logo = logoSource(b);
+    var s = styleOf(b);
+    var logo = b.logo === "none" ? null : opts.settings ? opts.logo || null : ownLogo;
     var fmt = fmtOf(b);
     var u = Math.min(H, W * 0.25) * (fmt.textScale || 1);   // Grundmaß für Schrift und Abstände
     var pad = Math.max(W * 0.04, u * 0.1);
     var img = opts.settings ? null : image;
     var bg = !opts.settings && imageMode && image ? "image" : b.bg;
-    var tc = textColor(s, b);
+    var tc = textColor(b);
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, W, H);
-    drawBackground(ctx, s, b, W, H, u, bg, img, tc);
+    drawBackground(ctx, b, W, H, u, bg, img, tc);
 
-    var title = (b.title || s.text || "").replace(/\s+/g, " ").trim();
+    var title = (b.title || "").replace(/\s+/g, " ").trim();
     var sub = (b.subtitle || "").replace(/\s+/g, " ").trim();
     var extra = (b.extra || "").replace(/\s+/g, " ").trim();
     var align = b.align;
@@ -516,7 +518,7 @@
     var hasText = !!(m.title || m.lines.length || m.extra);
     return {
       scale: m.scale, subScale: m.subScale, subCut: m.subCut, extraScale: m.extraScale, extraCut: m.extraCut,
-      textW: m.textW, left: left, autoColor: tc.auto && hasText, warnTransparent: !!tc.warnTransparent && hasText,
+      textW: m.textW, left: left, warnTransparent: !!tc.warnTransparent && hasText,
       lowContrast: !!tc.lowContrast && hasText,
       logo: hasLogo ? { x: logoX, y: logoY, w: logoW, h: logoH } : null, safe: safeRect
     };
@@ -543,7 +545,6 @@
       else if (info.subScale < 0.995) msgs.push(t("banner.subtitleShrunk", { percent: Math.round(info.subScale * 100) }));
       if (info.extraCut) msgs.push(t("banner.extraCut"));
       else if (info.extraScale < 0.995) msgs.push(t("banner.extraShrunk", { percent: Math.round(info.extraScale * 100) }));
-      if (info.autoColor) msgs.push(t("banner.autoColor"));
       if (info.warnTransparent) msgs.push(t("banner.transparentContrast"));
       if (info.lowContrast) msgs.push(t("banner.lowContrast"));
       els.warning.hidden = !msgs.length;
@@ -554,40 +555,59 @@
     scheduleThumbs();
   }
 
-  /** Schriften des Banners laden (Überschrift ggf. fett, Unterzeile normal), danach neu zeichnen. */
-  function ensureFonts() {
-    var s = bannerStyle(settings);
-    var list = [Object.assign({}, s), Object.assign({}, s, { bold: false }), Object.assign({}, s, { bold: true })];
-    return Promise.all(list.map(function (x) { return PBG.editor.ensureFont(x); }));
+  // ---------- Schriften (selbst gehostet, fonts.css) ----------
+  var fontPromises = {};
+  function loadFont(id, bold) {
+    var f = PBG.fontById(id);
+    var w = bold && f.weights.indexOf(700) >= 0 ? "700" : "400";
+    var key = id + "|" + w;
+    if (!fontPromises[key]) {
+      fontPromises[key] = document.fonts && document.fonts.load
+        ? document.fonts.load(w + ' 40px "' + id + '"', "ABCÄÖÜ abc").catch(function () {})
+        : Promise.resolve();
+    }
+    return fontPromises[key];
+  }
+
+  /** Schriften eines Banners laden (Überschrift ggf. fett, übrige Zeilen normal). */
+  function ensureFonts(b) {
+    b = b || settings;
+    return Promise.all([loadFont(b.font, b.bold === "bold"), loadFont(b.font, false)]);
   }
 
   // ---------- Banner-Vorlagen ----------
-  /** Einstellungen einer Banner-Vorlage; Format, Logo-Art, Schrift und Textfarbe bleiben, auf Wunsch Farben vom Rahmen. */
+  /** Einstellungen einer Banner-Vorlage; Format, Schrift, Schriftstärke und Logo-Art bleiben, die Textfarbe wird automatisch. */
   function templateSettings(bp) {
-    var b = Object.assign({}, PBG.BANNER_DEFAULTS, bp.values, {
-      format: settings.format, logo: settings.logo, font: settings.font, bold: settings.bold, textColor: settings.textColor,
+    return Object.assign({}, PBG.BANNER_DEFAULTS, bp.values, {
+      format: settings.format, logo: settings.logo, font: settings.font, bold: settings.bold,
       title: PBG.presetText(bp, "title"), subtitle: PBG.presetText(bp, "subtitle"), extra: PBG.presetText(bp, "extra")
     });
-    if (els.frameColors && els.frameColors.checked) b.bgColor = "frame";
-    return b;
   }
 
   function markTemplates() {
-    document.querySelectorAll(".banner-preset").forEach(function (btn) {
+    // Banner-Vorlagen: data-key = Schlüssel; eigene Vorlagen (own.js): data-key = "own:<id>"
+    document.querySelectorAll(".banner-preset, .own-preset").forEach(function (btn) {
       btn.setAttribute("aria-pressed", String(btn.dataset.key === activeTemplate));
     });
   }
 
-  function applyTemplate(bp) {
+  /** Andere Vorlage gewählt: „Als eigene Vorlage speichern“ bezieht sich nicht mehr auf das Banner aus dem Link. */
+  function endLinkOffer() {
+    linkFromUrl = false;
+    PBG.Links.endSave();
+  }
+
+  function applyTemplate(bp, quiet) {
     settings = templateSettings(bp);
     imageMode = false;     // ein Hintergrundbild bleibt geladen und lässt sich wieder wählen
     activeTemplate = bp.key;
+    endLinkOffer();
     markTemplates();
     ensureFonts().then(requestRender);
     clampView();
     syncControls();
     requestRender();
-    setStatus(els.status, t("banner.templateApplied", { name: PBG.loc(bp.name) }));
+    if (!quiet) U.setStatus(els.status, t("banner.templateApplied", { name: PBG.loc(bp.name) }));
   }
 
   function templateButton(bp) {
@@ -607,7 +627,6 @@
   }
 
   function buildTemplates() {
-    if (!els.presets) return;
     var today = PBG.today();
     els.presets.innerHTML = "";
     els.presetsCurrent.innerHTML = "";
@@ -617,7 +636,7 @@
     PBG.BANNER_GROUPS.forEach(function (g) {
       var list = PBG.BANNER_PRESETS.filter(function (bp) { return bp.group === g && current.indexOf(bp) < 0; });
       if (!list.length) return;
-      var h = document.createElement("h4");
+      var h = document.createElement("h3");
       h.className = "preset-group";
       h.textContent = t("banner.group." + g);
       var grid = document.createElement("div");
@@ -643,15 +662,14 @@
       var start = performance.now();
       while (i < btns.length && performance.now() - start < 10) {
         var btn = btns[i++];
-        var bp = PBG.bannerPresetByKey(btn.dataset.key);
-        var b = templateSettings(bp);
+        var b = templateSettings(PBG.bannerPresetByKey(btn.dataset.key));
         var fmt = fmtOf(b);
         var c = btn.querySelector("canvas");
         var w = Math.round(150 * dpr), h = Math.round(w * fmt.h / fmt.w);
         if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
         c.style.aspectRatio = fmt.w + " / " + fmt.h;
         btn.classList.toggle("is-transparent", b.bgColor === "transparent");
-        render(c.getContext("2d"), w, h, { settings: b });
+        render(c.getContext("2d"), w, h, { settings: b, logo: ownLogo });
         btn.setAttribute("aria-pressed", String(btn.dataset.key === activeTemplate));
       }
       if (i < btns.length) requestAnimationFrame(step);
@@ -664,7 +682,7 @@
     document.querySelectorAll('input[name="' + name + '"]').forEach(function (r) { r.checked = r.value === value; });
   }
 
-  function setRange(el, out, v) {
+  function setRange(el, v) {
     el.value = v;
     var text = Math.round(v) + " %";
     var o = $(el.id + "-out");
@@ -677,7 +695,8 @@
     els.bold.value = settings.bold;
     els.ownTextColor.checked = !!settings.textColor;
     els.textColorField.hidden = !settings.textColor;
-    var tcv = settings.textColor || PBG.editor.state().textColor;
+    els.textColorAuto.hidden = !!settings.textColor;
+    var tcv = settings.textColor || textColor(settings).color;
     els.textColor.value = tcv; els.textColorHex.value = tcv.toUpperCase();
     els.title.value = settings.title;
     els.subtitle.value = settings.subtitle;
@@ -700,10 +719,10 @@
     els.logoRemove.hidden = !ownLogo;
     els.logoSettings.hidden = settings.logo === "none";
     els.logoPos.value = settings.logoPos;
-    setRange(els.logoSize, null, settings.logoSize);
-    setRange(els.titleSize, null, settings.titleSize);
-    setRange(els.subtitleSize, null, settings.subtitleSize);
-    setRange(els.extraSize, null, settings.extraSize);
+    setRange(els.logoSize, settings.logoSize);
+    setRange(els.titleSize, settings.titleSize);
+    setRange(els.subtitleSize, settings.subtitleSize);
+    setRange(els.extraSize, settings.extraSize);
     els.imageSettings.hidden = !imageMode;
     els.imageRemove.hidden = !image;
     els.zoom.value = view.zoom;
@@ -712,7 +731,7 @@
     els.downloadLabel.textContent = t("banner.download", { w: fmt.w, h: fmt.h });
   }
 
-  /** Jede Änderung von Hand beendet die Markierung der gewählten Banner-Vorlage. */
+  /** Jede Änderung von Hand beendet die Markierung der gewählten Vorlage. */
   function changed() {
     activeTemplate = null;
     markTemplates();
@@ -720,10 +739,6 @@
   }
 
   function buildFontOptions() {
-    var o = document.createElement("option");
-    o.value = "";
-    o.textContent = t("banner.fontFrame");
-    els.font.appendChild(o);
     PBG.FONTS.forEach(function (f) {
       var x = document.createElement("option");
       x.value = f.id;
@@ -753,7 +768,7 @@
     els.font.addEventListener("change", function () { settings.font = els.font.value; ensureFonts().then(requestRender); changed(); });
     els.bold.addEventListener("change", function () { settings.bold = els.bold.value; ensureFonts().then(requestRender); changed(); });
     els.ownTextColor.addEventListener("change", function () {
-      settings.textColor = els.ownTextColor.checked ? textColor(PBG.editor.state(), Object.assign({}, settings, { textColor: "" })).color : "";
+      settings.textColor = els.ownTextColor.checked ? textColor(Object.assign({}, settings, { textColor: "" })).color : "";
       syncControls();
       changed();
     });
@@ -789,118 +804,390 @@
         changed();
       });
       hex.addEventListener("input", function () {
-        var v = normalizeHex(hex.value);
+        var v = U.normalizeHex(hex.value);
         if (v) { settings[pair[0]] = v; picker.value = v; hex.removeAttribute("aria-invalid"); changed(); }
         else hex.setAttribute("aria-invalid", "true");
       });
-      hex.addEventListener("blur", function () { hex.value = settings[pair[0]].toUpperCase(); hex.removeAttribute("aria-invalid"); });
+      hex.addEventListener("blur", function () { hex.value = (settings[pair[0]] || picker.value).toUpperCase(); hex.removeAttribute("aria-invalid"); });
     });
     els.gradient.addEventListener("change", function () { settings.gradient = els.gradient.checked; syncControls(); changed(); });
     els.logoPos.addEventListener("change", function () { settings.logoPos = els.logoPos.value; changed(); });
-    [["logoSize", "logoSize"], ["titleSize", "titleSize"], ["subtitleSize", "subtitleSize"], ["extraSize", "extraSize"]].forEach(function (pair) {
-      els[pair[0]].addEventListener("input", function () {
-        settings[pair[1]] = parseFloat(els[pair[0]].value);
-        setRange(els[pair[0]], null, settings[pair[1]]);
+    ["logoSize", "titleSize", "subtitleSize", "extraSize"].forEach(function (k) {
+      els[k].addEventListener("input", function () {
+        settings[k] = parseFloat(els[k].value);
+        setRange(els[k], settings[k]);
         changed();
       });
     });
     els.logoInput.addEventListener("change", function () { loadLogo(els.logoInput.files && els.logoInput.files[0]); });
     els.logoRemove.addEventListener("click", function () {
       ownLogo = null; els.logoInput.value = "";
-      setStatus(els.logoStatus, t("banner.logoRemoved"));
+      U.setStatus(els.logoStatus, t("banner.logoRemoved"));
       syncControls();
       changed();
     });
-    els.frameColors.addEventListener("change", scheduleThumbs);
     els.zoom.addEventListener("input", function () { setZoom(parseFloat(els.zoom.value)); });
     els.imageInput.addEventListener("change", function () { loadImage(els.imageInput.files && els.imageInput.files[0]); });
     els.imageRemove.addEventListener("click", function () {
       image = null; imageMode = false; els.imageInput.value = "";
       view = { zoom: 1, offsetX: 0, offsetY: 0 };
-      setStatus(els.imageStatus, t("banner.imageRemoved"));
+      U.setStatus(els.imageStatus, t("banner.imageRemoved"));
       syncControls();
       requestRender();
     });
     els.download.addEventListener("click", download);
   }
 
-  function setStatus(el, msg, isError) {
-    el.textContent = msg || "";
-    el.classList.toggle("error", !!isError);
+  // ---------- Eigene Banner-Vorlagen (own.js): nur lokal, nie mit Hintergrundbild ----------
+  /** Aktuelle Banner-Einstellungen (ohne Hintergrundbild und Logo-Bild). */
+  function currentBanner() {
+    var out = {};
+    Object.keys(PBG.BANNER_DEFAULTS).forEach(function (k) { out[k] = settings[k]; });
+    return out;
+  }
+
+  /** Logo als PNG-Data-URL (höchstens 512 px) für „Meine Vorlagen“; null ohne Logo. */
+  function logoDataUrl() {
+    if (!ownLogo) return null;
+    var c = U.toCanvas(ownLogo, STORE_LOGO_SIDE, false);
+    var url = c.toDataURL("image/png");
+    c.width = 0;
+    return url;
+  }
+
+  /**
+   * Prüft eine eigene Banner-Vorlage streng: nur bekannte Schlüssel, Banner-Werte im erlaubten Bereich, Logo nur als
+   * PNG/JPEG/WebP-Data-URL. Gibt { template, dropped[] } zurück oder null, wenn kein gültiges Banner enthalten ist.
+   */
+  function validateTemplate(raw) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+    var dropped = [];
+    Object.keys(raw).forEach(function (k) {
+      if (["format", "type", "version", "id", "name", "banner", "logo", "created"].indexOf(k) < 0) dropped.push(k);
+    });
+    var v = PBG.validateBanner(raw.banner);
+    if (!v.banner) return null;
+    v.dropped.forEach(function (k) { dropped.push(fieldLabel(k)); });
+    var logoUrl = null;
+    if (raw.logo != null && raw.logo !== "") {
+      if (U.validLogoDataUrl(raw.logo, LOGO_URL_MAX)) logoUrl = raw.logo;
+      else dropped.push(t("banner.logoHeading"));
+    }
+    var name = typeof raw.name === "string" ? raw.name.trim().slice(0, own ? own.NAME_MAX : 40) : "";
+    return {
+      template: {
+        id: typeof raw.id === "string" && /^[a-z0-9-]{1,40}$/.test(raw.id) ? raw.id : U.newId(),
+        name: name || t("own.unnamed"),
+        banner: Object.assign({}, PBG.BANNER_DEFAULTS, v.banner),
+        logo: logoUrl,
+        created: typeof raw.created === "number" && isFinite(raw.created) ? raw.created : Date.now()
+      },
+      dropped: dropped
+    };
+  }
+
+  /** „banner.title“ oder „title“ → lesbare Bezeichnung. */
+  function fieldLabel(k) {
+    var key = String(k).replace(/^banner\./, "");
+    return FIELD_LABELS[key] ? t(FIELD_LABELS[key]) : key;
+  }
+
+  /** Banner-Teil einer älteren kombinierten Vorlage (Rahmen + Banner) als eigene Banner-Vorlage; null ohne Banner. */
+  function legacyTemplate(raw) {
+    if (!raw || typeof raw !== "object" || !raw.banner || typeof raw.banner !== "object" || Array.isArray(raw.banner)) return null;
+    var logo = function (v) { return U.validLogoDataUrl(v, LOGO_URL_MAX) ? v : null; };
+    var conv = PBG.bannerFromLegacy(raw.banner, raw.design, logo(raw.logo), logo(raw.bannerLogo));
+    var r = validateTemplate({ id: U.newId(), name: raw.name, banner: conv.banner, logo: conv.logo, created: raw.created });
+    if (!r) return null;
+    conv.dropped.forEach(function (k) { r.dropped.push(fieldLabel(k)); });
+    return r;
+  }
+
+  function templateLogo(tpl) {
+    if (!tpl.logo) return Promise.resolve(null);
+    if (!ownLogoImages[tpl.id]) ownLogoImages[tpl.id] = U.loadDataUrl(tpl.logo);
+    return ownLogoImages[tpl.id];
+  }
+
+  function applyOwnTemplate(tpl) {
+    settings = Object.assign({}, PBG.BANNER_DEFAULTS, tpl.banner);
+    imageMode = false;
+    activeTemplate = "own:" + tpl.id;
+    endLinkOffer();
+    templateLogo(tpl).then(function (img) {
+      ownLogo = img ? U.toCanvas(img, MAX_LOGO_SIDE, false) : null;
+    }, function () { ownLogo = null; }).then(function () {
+      clampView();
+      syncControls();
+      markTemplates();
+      ensureFonts().then(requestRender);
+      requestRender();
+      U.setStatus(els.status, t("banner.templateApplied", { name: tpl.name }));
+    });
+  }
+
+  function bindOwnTemplates() {
+    var toFrame = { href: U.toolUrl("frame"), label: t("nav.toFrame") };
+    own = PBG.OwnList({
+      key: OWN_KEY, type: "banner", version: 2,
+      els: { list: els.ownList, empty: els.ownEmpty, form: els.ownSaveForm, name: els.ownName, importInput: els.ownImport, status: els.ownStatus },
+      validate: validateTemplate,
+      current: function (name) {
+        var tpl = { id: U.newId(), name: name, banner: currentBanner(), logo: logoDataUrl(), created: Date.now() };
+        activeTemplate = "own:" + tpl.id;
+        return tpl;
+      },
+      apply: applyOwnTemplate,
+      thumb: function (c, tpl, size) {
+        var b = tpl.banner, fmt = fmtOf(b);
+        c.width = size * 2;
+        c.height = Math.round(c.width * fmt.h / fmt.w);
+        c.style.aspectRatio = fmt.w + " / " + fmt.h;
+        c.classList.toggle("is-transparent", b.bgColor === "transparent");
+        Promise.all([ensureFonts(b), templateLogo(tpl).catch(function () { return null; })]).then(function (r) {
+          render(c.getContext("2d"), c.width, c.height, { settings: b, logo: r[1] });
+        });
+      },
+      link: function (tpl) { PBG.Links.openDialog(bannerLink(tpl.banner), !!tpl.logo); },
+      exportData: function (tpl) { return { banner: tpl.banner, logo: tpl.logo || null }; },
+      /**
+       * Nur Banner-Dateien. Ältere Dateien ohne Typ (Rahmen und Banner zusammen): den Banner-Teil umrechnen und
+       * importieren, Hinweis auf die Rahmen-Seite. Rahmen-Dateien: Hinweis mit Link zur Rahmen-Seite.
+       */
+      prepareImport: function (raw) {
+        if (raw.type === "frame") return { error: t("own.wrongTypeFrame"), goto: toFrame };
+        if (raw.type === "banner") return { raw: raw };
+        if (raw.type != null) return { error: t("own.errorFile") };
+        if (!raw.banner || typeof raw.banner !== "object" || Array.isArray(raw.banner)) return { error: t("own.noBanner"), goto: toFrame };
+        var r = legacyTemplate(raw);
+        if (!r) return { error: t("own.errorFile") };
+        return { raw: r.template, note: t("own.alsoFrame"), noteGoto: toFrame };
+      },
+      checkLogos: function (tpl, dropped) {
+        return templateLogo(tpl).then(function () {}, function () {
+          delete ownLogoImages[tpl.id];
+          tpl.logo = null;
+          dropped.push(t("banner.logoHeading"));
+        });
+      },
+      onDelete: function (tpl) {
+        delete ownLogoImages[tpl.id];
+        if (activeTemplate === "own:" + tpl.id) activeTemplate = null;
+      },
+      onChange: markTemplates
+    });
+    own.bind();
+  }
+
+  /**
+   * Einmalige Übernahme: Der Banner-Teil jeder älteren eigenen Vorlage (rl-own-templates) wird eine eigene
+   * Banner-Vorlage mit gleichem Namen. Nichts wird gelöscht; schon übernommene Vorlagen (gleicher Name und gleiches
+   * Datum) werden nicht doppelt angelegt. Der Merker wird erst gesetzt, wenn alles gespeichert ist.
+   */
+  function migrateLegacy() {
+    if (PBG.storage.get(MIGRATED_KEY)) return;
+    var list;
+    try { list = JSON.parse(PBG.storage.get(FRAME_OWN_KEY) || "[]"); } catch (e) { list = []; }
+    if (!Array.isArray(list)) list = [];
+    var added = 0, err = null;
+    // von hinten, damit die Reihenfolge (neueste oben) erhalten bleibt
+    for (var i = list.length - 1; i >= 0; i--) {
+      var r = legacyTemplate(list[i]);
+      if (!r) continue;
+      var tpl = r.template;
+      var exists = own.list().some(function (x) { return x.name === tpl.name && x.created === tpl.created; });
+      if (exists) continue;
+      err = own.add(tpl);
+      if (err) break;
+      added++;
+    }
+    if (!err) PBG.storage.set(MIGRATED_KEY, "1");
+    if (added) own.render();
+    if (err) own.msg(t("banner.migrateError") + " " + err, true);
+    else if (added) own.msg(t("banner.migrated", { count: added }));
+  }
+
+  // ---------- Banner als Link (#b=…, links.js): nur Einstellungen, nie Logo oder Hintergrundbild ----------
+  function bannerLink(b) {
+    return PBG.Links.url("b", Object.assign({ v: LINK_VERSION }, PBG.bannerDiff(b) || {}));
+  }
+
+  /**
+   * Liest ein Banner aus dem Fragment: #b=… (Banner-Link) oder – aus der Zeit, als das Banner auf der Rahmen-Seite lag –
+   * #d=… mit Banner (wird mit dem Rahmen des Links umgerechnet). Gibt null zurück, wenn kein Link vorliegt, sonst
+   * { error, goto? } oder { banner, dropped[], unknown }.
+   */
+  function parseLink(hash) {
+    var r = PBG.Links.read("b", LINK_MAX, hash);
+    if (r) {
+      if (r.error) return r;
+      var data = r.data;
+      if (data.v !== LINK_VERSION) return { error: typeof data.v === "number" ? "link.errorVersion" : "link.errorInvalid" };
+      var out = {}, dropped = [], unknown = 0, keys = 0;
+      Object.keys(data).forEach(function (k) {
+        if (k === "v") return;
+        keys++;
+        if (!Object.prototype.hasOwnProperty.call(PBG.BANNER_DEFAULTS, k)) { unknown++; return; }
+        var v = PBG.validBannerValue(k, data[k]);
+        if (v === undefined) dropped.push(fieldLabel(k)); else out[k] = v;
+      });
+      if (keys && !Object.keys(out).length) return { error: "link.errorInvalid" };
+      return { banner: Object.assign({}, PBG.BANNER_DEFAULTS, out), dropped: dropped, unknown: unknown };
+    }
+    var d = PBG.Links.read("d", LEGACY_LINK_MAX, hash);
+    if (!d) return null;
+    if (d.error) return d;
+    if (d.data.v !== 1) return { error: typeof d.data.v === "number" ? "link.errorVersion" : "link.errorInvalid" };
+    var old = d.data.banner;
+    if (!old || typeof old !== "object" || Array.isArray(old)) {
+      // reiner Rahmen-Link: auf der Rahmen-Seite öffnen
+      return { error: "link.onlyFrame", goto: { href: U.toolUrl("frame") + "#d=" + d.raw, label: t("link.openFrame") } };
+    }
+    var conv = PBG.bannerFromLegacy(old, d.data, null, null);
+    var v = PBG.validateBanner(conv.banner);
+    return {
+      banner: Object.assign({}, PBG.BANNER_DEFAULTS, v.banner || {}),
+      dropped: conv.dropped.concat(v.dropped).map(fieldLabel), unknown: 0
+    };
+  }
+
+  function saveFromLink() {
+    if (!linkFromUrl) return;
+    var tpl = own.save(t("link.defaultBannerName"), function (msg, isError) { PBG.Links.notice(msg, isError); });
+    if (tpl) { linkFromUrl = false; markTemplates(); }
+  }
+
+  /** Lädt ein Banner aus dem Fragment und entfernt es sofort aus der Adresse. Gibt true zurück, wenn ein Banner geladen wurde. */
+  function loadLinkFromHash() {
+    var r = parseLink(location.hash);
+    if (!r) return false;
+    PBG.Links.strip();
+    if (r.error) {
+      linkFromUrl = false;
+      PBG.Links.notice(t(r.error, { app: (PBG.config || {}).appName }), true, { goto: r.goto });
+      return false;
+    }
+    settings = r.banner;
+    imageMode = false;
+    activeTemplate = null;
+    clampView();
+    syncControls();
+    markTemplates();
+    ensureFonts().then(requestRender);
+    requestRender();
+    linkFromUrl = true;
+    var fields = r.dropped.slice();
+    if (r.unknown) fields.push(t("link.unknown", { count: r.unknown }));
+    PBG.Links.notice(t("link.bannerLoaded") + (fields.length ? " " + t("link.partial", { fields: fields.join(", ") }) : ""), fields.length > 0, { save: saveFromLink });
+    return true;
+  }
+
+  function bindLinks() {
+    PBG.Links.bind();
+    els.link.addEventListener("click", function () { PBG.Links.openDialog(bannerLink(currentBanner()), !!ownLogo && settings.logo === "own"); });
+    // Link in einem schon offenen Tab eingefügt: Nur das Fragment ändert sich, die Seite lädt nicht neu
+    window.addEventListener("hashchange", function () {
+      var n = PBG.Links.noticeElement();
+      if (loadLinkFromHash() || !n.hidden) n.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+  }
+
+  // ---------- Farben aus einer Rahmen-Vorlage: nur Farben, Verlauf und Schrift ----------
+  /** Rahmen-Vorlagen dieses Geräts (nur gelesen, streng geprüft). */
+  function ownFrameTemplates() {
+    var list;
+    try { list = JSON.parse(PBG.storage.get(FRAME_OWN_KEY) || "[]"); } catch (e) { list = []; }
+    if (!Array.isArray(list)) return [];
+    return list.filter(function (x) {
+      return x && typeof x === "object" && x.design && typeof x.design === "object" && !Array.isArray(x.design);
+    }).slice(0, 50).map(function (x) {
+      var name = typeof x.name === "string" && x.name.trim() ? x.name.trim().slice(0, 40) : t("own.unnamed");
+      return { name: name, style: PBG.frameStyleOf(x.design) };
+    });
+  }
+
+  function frameColorButton(name, f) {
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "frame-color";
+    var sw = document.createElement("span");
+    sw.className = "frame-color-swatch";
+    sw.setAttribute("aria-hidden", "true");
+    sw.style.background = f.gradient ? "linear-gradient(135deg, " + f.ringColor + ", " + f.ringColor2 + ")" : f.ringColor;
+    sw.style.color = f.textColor;
+    sw.style.fontFamily = '"' + f.font + '", system-ui, sans-serif';
+    sw.textContent = "Aa";
+    var label = document.createElement("span");
+    label.textContent = name;
+    btn.appendChild(sw);
+    btn.appendChild(label);
+    btn.setAttribute("aria-label", t("banner.fromFrameApply", { name: name }));
+    btn.addEventListener("click", function () { applyFrameColors(name, f); });
+    return btn;
+  }
+
+  function openFrameColors() {
+    var mine = ownFrameTemplates();
+    els.frameOwn.innerHTML = "";
+    mine.forEach(function (x) { els.frameOwn.appendChild(frameColorButton(x.name, x.style)); });
+    els.frameOwnWrap.hidden = !mine.length;
+    if (!els.frameBuiltin.childNodes.length) {
+      PBG.PRESETS.forEach(function (p) {
+        var f = PBG.frameStyleOf(Object.assign({}, PBG.DEFAULTS, p.values));
+        els.frameBuiltin.appendChild(frameColorButton(PBG.loc(p.name), f));
+      });
+    }
+    U.showDialog(els.frameDialog);
+  }
+
+  function applyFrameColors(name, f) {
+    settings.bgColor = "custom";
+    settings.color1 = f.ringColor;
+    settings.color2 = f.ringColor2;
+    settings.gradient = f.gradient;
+    settings.font = f.font;
+    settings.textColor = f.textColor;
+    U.closeDialog(els.frameDialog);
+    syncControls();
+    ensureFonts().then(requestRender);
+    changed();
+    U.setStatus(els.status, t("banner.fromFrameApplied", { name: name }));
+  }
+
+  function bindFrameColors() {
+    els.fromFrame.addEventListener("click", openFrameColors);
+    els.frameDialog.addEventListener("click", function (e) { if (e.target === els.frameDialog) U.closeDialog(els.frameDialog); });
   }
 
   // ---------- Hintergrundbild: nur im Browser ----------
   function loadImage(file) {
     if (!file) return;
     if (!/^image\/(jpeg|png|webp)$/.test(file.type) && !/\.(jpe?g|png|webp)$/i.test(file.name || "")) {
-      setStatus(els.imageStatus, t("banner.imageErrorType"), true);
+      U.setStatus(els.imageStatus, t("banner.imageErrorType"), true);
       return;
     }
-    var url = URL.createObjectURL(file);
-    var img = new Image();
-    img.onload = function () {
-      URL.revokeObjectURL(url);
-      var w = img.naturalWidth, h = img.naturalHeight;
-      if (!w || !h) { setStatus(els.imageStatus, t("banner.imageError"), true); return; }
-      var sc = Math.min(1, MAX_IMAGE_SIDE / Math.max(w, h));
-      var c = document.createElement("canvas");
-      c.width = Math.round(w * sc); c.height = Math.round(h * sc);
-      var x = c.getContext("2d");
-      x.imageSmoothingQuality = "high";
-      x.drawImage(img, 0, 0, c.width, c.height);
-      image = c;
+    U.decodeImage(file).then(function (img) {
+      image = U.toCanvas(img, MAX_IMAGE_SIDE, false);
       imageMode = true;
       view = { zoom: 1, offsetX: 0, offsetY: 0 };
-      setStatus(els.imageStatus, t("banner.imageLoaded", { name: file.name || "" }));
+      U.setStatus(els.imageStatus, t("banner.imageLoaded", { name: file.name || "" }));
       syncControls();
       requestRender();
-    };
-    img.onerror = function () { URL.revokeObjectURL(url); setStatus(els.imageStatus, t("banner.imageError"), true); };
-    img.src = url;
+    }, function () { U.setStatus(els.imageStatus, t("banner.imageError"), true); });
   }
 
-  // ---------- Eigenes Banner-Logo: nur im Browser, höchstens 1024 px ----------
-  function isLogoFile(file) {
-    return /^image\/(png|jpeg|webp|svg\+xml)$/.test(file.type) || /\.(png|jpe?g|webp|svg)$/i.test(file.name || "");
-  }
-
-  /** Zeichnet ein Bild auf einen Canvas mit höchstens maxSide px; SVGs werden auf diese Größe gerastert. */
-  function toCanvas(img, maxSide, svg) {
-    var w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
-    if (!w || !h) { w = h = maxSide; }
-    var sc = maxSide / Math.max(w, h);
-    if (!svg) sc = Math.min(1, sc);
-    var c = document.createElement("canvas");
-    c.width = Math.max(1, Math.round(w * sc));
-    c.height = Math.max(1, Math.round(h * sc));
-    var x = c.getContext("2d");
-    x.imageSmoothingQuality = "high";
-    x.drawImage(img, 0, 0, c.width, c.height);
-    return c;
-  }
-
+  // ---------- Logo: nur im Browser, höchstens 1024 px ----------
   function loadLogo(file) {
     if (!file) return;
-    if (!isLogoFile(file)) { setStatus(els.logoStatus, t("logo.errorType"), true); return; }
-    if (file.size > MAX_LOGO_FILE_MB * 1024 * 1024) { setStatus(els.logoStatus, t("logo.errorSize", { max: MAX_LOGO_FILE_MB }), true); return; }
-    var svg = file.type === "image/svg+xml" || /\.svg$/i.test(file.name || "");
-    var blob = svg && file.type !== "image/svg+xml" ? new Blob([file], { type: "image/svg+xml" }) : file;
-    var url = URL.createObjectURL(blob);
-    var img = new Image();
-    img.onload = function () {
-      URL.revokeObjectURL(url);
-      try {
-        var c = toCanvas(img, MAX_LOGO_SIDE, svg);
-        c.toDataURL("image/png");   // wirft bei nicht exportierbarem Canvas
-        ownLogo = c;
-        settings.logo = "own";
-        setStatus(els.logoStatus, t("logo.loaded", { name: file.name || "" }));
-        syncControls();
-        changed();
-      } catch (e) { setStatus(els.logoStatus, t("logo.error"), true); }
-    };
-    img.onerror = function () { URL.revokeObjectURL(url); setStatus(els.logoStatus, t("logo.error"), true); };
-    img.src = url;
+    U.loadLogoFile(file, MAX_LOGO_SIDE, MAX_LOGO_FILE_MB).then(function (c) {
+      ownLogo = c;
+      settings.logo = "own";
+      U.setStatus(els.logoStatus, t("logo.loaded", { name: file.name || "" }));
+      syncControls();
+      changed();
+    }, function (e) {
+      U.setStatus(els.logoStatus, e.message === "type" ? t("logo.errorType") : e.message === "size" ? t("logo.errorSize", { max: MAX_LOGO_FILE_MB }) : t("logo.error"), true);
+    });
   }
 
   /** Verschiebung so begrenzen, dass das Bild das Banner immer ganz bedeckt. */
@@ -973,93 +1260,34 @@
       var c = document.createElement("canvas");
       c.width = fmt.w; c.height = fmt.h;
       render(c.getContext("2d"), fmt.w, fmt.h, { overlay: false });
-      return new Promise(function (resolve) { c.toBlob(resolve, "image/png"); });
+      return new Promise(function (resolve, reject) { c.toBlob(function (b) { if (b) resolve(b); else reject(new Error("blob")); }, "image/png"); });
     }).then(function (blob) {
       var fmt = format();
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement("a");
-      a.href = url;
-      a.download = t("banner.filename") + "-" + fmt.w + "x" + fmt.h + ".png";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
-      setStatus(els.status, t("banner.done"));
+      U.download(blob, t("banner.filename") + "-" + fmt.w + "x" + fmt.h + ".png");
+      U.setStatus(els.status, t("banner.done"));
     }).catch(function () {
-      setStatus(els.status, t("banner.error"), true);
+      U.setStatus(els.status, t("banner.error"), true);
     }).then(function () { els.download.disabled = false; });
   }
 
-  // ---------- Schnittstelle für eigene Vorlagen und Design-Links (app.js) ----------
-  PBG.banner = {
-    /** Banner-Einstellungen zum Speichern (ohne Hintergrundbild und ohne Logo-Bild). */
-    get: function () {
-      var out = {};
-      Object.keys(PBG.BANNER_DEFAULTS).forEach(function (k) { out[k] = settings[k]; });
-      return out;
-    },
-    /** Übernimmt geprüfte Einstellungen; fehlende Schlüssel = Standard. Ein Hintergrundbild bleibt erhalten. */
-    set: function (b) {
-      var v = PBG.validateBanner(b).banner || {};
-      settings = Object.assign({}, PBG.BANNER_DEFAULTS, v);
-      activeTemplate = null;
-      clampView();
-      syncControls();
-      requestRender();
-    },
-    hasOwnLogo: function () { return !!ownLogo; },
-    /**
-     * Vor dem Wechsel des Rahmens (Rahmen-Vorlage, eigene Vorlage ohne Banner, Link ohne Banner): Hat das Banner einen
-     * eigenen Hintergrund, übernimmt es Schrift, Schriftstärke, Textfarbe und Überschrift fest – so bleibt es unverändert.
-     * Bei „Wie der Rahmen“ folgt das Banner weiter dem Rahmen.
-     */
-    detachFromFrame: function () {
-      if (settings.bgColor === "frame") return false;
-      var s = PBG.editor.state();
-      var before = JSON.stringify(settings);
-      if (!settings.textColor) settings.textColor = textColor(bannerStyle(settings), settings).color;
-      if (!settings.font) settings.font = s.font;
-      if (settings.bold === "frame") settings.bold = s.bold ? "bold" : "regular";
-      if (!settings.title) settings.title = String(s.text || "").replace(/\s+/g, " ").trim().slice(0, PBG.BANNER_MAX.title);
-      if (JSON.stringify(settings) === before) return false;
-      syncControls();
-      setStatus(els.status, t("banner.detached"));
-      return true;
-    },
-    /** Eigenes Banner-Logo als PNG-Data-URL (höchstens 512 px) für „Meine Vorlagen“; null ohne eigenes Logo. */
-    logoDataUrl: function () {
-      if (!ownLogo) return null;
-      var c = toCanvas(ownLogo, STORE_LOGO_SIDE, false);
-      var url = c.toDataURL("image/png");
-      c.width = 0;
-      return url;
-    },
-    /** Setzt das eigene Banner-Logo aus einer Data-URL (aus einer eigenen Vorlage). */
-    setLogoDataUrl: function (url) {
-      return new Promise(function (resolve) {
-        if (!url) { resolve(false); return; }
-        var img = new Image();
-        img.onload = function () { ownLogo = toCanvas(img, MAX_LOGO_SIDE, false); syncControls(); requestRender(); resolve(true); };
-        img.onerror = function () { resolve(false); };
-        img.src = url;
-      });
-    },
-    render: render
+  /** Für Tests und Vorschaubilder (scripts/render-images.mjs): Zeichnen mit beliebigen Einstellungen. */
+  PBG.bannerEditor = {
+    render: render,
+    settings: function () { return currentBanner(); },
+    ensureFonts: ensureFonts
   };
 
   // ---------- Start ----------
-  // Banner-Einstellungen aus einem Design-Link, der beim Öffnen der Seite gelesen wurde (app.js lädt vor banner.js)
-  if (PBG.pendingBanner) {
-    settings = Object.assign({}, PBG.BANNER_DEFAULTS, PBG.validateBanner(PBG.pendingBanner).banner || {});
-    delete PBG.pendingBanner;
-  }
   buildFontOptions();
   buildIconOptions();
   bindControls();
   bindPan();
-  syncControls();
+  bindLinks();
+  bindFrameColors();
+  bindOwnTemplates();
+  migrateLegacy();
   buildTemplates();
-  document.addEventListener("pbg:design", function () { ensureFonts().then(requestRender); requestRender(); });
+  if (!loadLinkFromHash()) applyTemplate(PBG.bannerPresetByKey(START_TEMPLATE), true);
   if (window.ResizeObserver) new ResizeObserver(requestRender).observe(els.canvas);
   else window.addEventListener("resize", requestRender);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(requestRender);
