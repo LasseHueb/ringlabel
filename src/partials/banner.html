@@ -1,4 +1,4 @@
-<!-- Profil-Banner im Design des Rahmens (public/js/banner.js). Hintergrundbilder bleiben im Browser. -->
+<!-- Profil-Banner (public/js/banner.js). Hintergrundbilder und Logos bleiben im Browser. -->
 <section class="section banner" id="banner" aria-labelledby="banner-h">
   <h2 id="banner-h" data-i18n="banner.heading">Profil-Banner im gleichen Design</h2>
   <p class="lead-small" data-i18n="banner.lead">Erstelle passend zu deinem Rahmen ein breites Banner für dein Profil. Farben, Schrift und Logo übernimmt es automatisch aus dem Rahmen oben.</p>
@@ -8,6 +8,18 @@
   </div>
   <p class="small muted banner-safe-hint" data-i18n="banner.safeHint">Schraffiert: der Bereich, den dein Profilbild verdecken kann. Bei Ausrichtung „Links“ weichen Text und Logo ihm automatisch aus, bei „Rechts“ reicht der Text nicht hinein. Die Markierung ist nicht im Download enthalten.</p>
   <p class="warning" id="banner-warning" role="status" aria-live="polite" hidden></p>
+
+  <!-- Banner-Vorlagen: ändern nur das Banner, nicht den Rahmen -->
+  <section class="banner-templates panel" aria-labelledby="banner-templates-h">
+    <h3 id="banner-templates-h" data-i18n="banner.templatesHeading">Banner-Vorlagen</h3>
+    <p class="small muted" data-i18n="banner.templatesHint">Ein Klick ändert nur das Banner – dein Rahmen bleibt, wie er ist. Format und Logo-Art bleiben erhalten.</p>
+    <label class="switch"><input type="checkbox" id="banner-frame-colors"><span class="track" aria-hidden="true"></span><span data-i18n="banner.frameColors">Farben vom Rahmen übernehmen</span></label>
+    <div class="banner-current" id="banner-current" hidden>
+      <h4 class="preset-group" data-i18n="presets.current">Gerade passend</h4>
+      <div class="banner-presets" id="banner-presets-current"></div>
+    </div>
+    <div id="banner-presets"></div>
+  </section>
 
   <div class="banner-controls">
     <fieldset class="panel">
@@ -22,6 +34,38 @@
         <input type="text" id="banner-subtitle" maxlength="100" autocomplete="off" data-i18n-placeholder="banner.subtitlePlaceholder">
       </div>
       <div class="field">
+        <label for="banner-extra" data-i18n="banner.extra">Zusatzzeile</label>
+        <input type="text" id="banner-extra" maxlength="80" autocomplete="off" data-i18n-placeholder="banner.extraPlaceholder">
+      </div>
+      <div class="field">
+        <label for="banner-extra-icon" data-i18n="banner.extraIcon">Symbol vor der Zusatzzeile</label>
+        <select id="banner-extra-icon"></select>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="banner-font" data-i18n="banner.font">Schrift</label>
+          <select id="banner-font"></select>
+        </div>
+        <div class="field">
+          <label for="banner-bold" data-i18n="banner.bold">Überschrift</label>
+          <select id="banner-bold">
+            <option value="frame" data-i18n="banner.boldFrame">Wie im Rahmen</option>
+            <option value="bold" data-i18n="banner.boldBold">Fett</option>
+            <option value="regular" data-i18n="banner.boldRegular">Normal</option>
+          </select>
+        </div>
+      </div>
+      <div class="toggles">
+        <label class="switch"><input type="checkbox" id="banner-own-textcolor"><span class="track" aria-hidden="true"></span><span data-i18n="banner.ownTextColor">Eigene Textfarbe</span></label>
+      </div>
+      <div class="field color-field" id="banner-textcolor-field" hidden>
+        <label for="banner-textcolor" data-i18n="banner.textColor">Textfarbe</label>
+        <div class="color-inputs">
+          <input type="color" id="banner-textcolor">
+          <input type="text" class="hex" id="banner-textcolor-hex" maxlength="7" spellcheck="false" autocomplete="off" data-i18n-aria="banner.textColorHex" aria-label="Hex-Code der Textfarbe">
+        </div>
+      </div>
+      <div class="field">
         <span class="label" id="banner-align-label" data-i18n="banner.align">Ausrichtung</span>
         <div class="segmented segmented-text" role="radiogroup" aria-labelledby="banner-align-label">
           <label><input type="radio" name="bannerAlign" value="left"><span data-i18n="banner.alignLeft">Links</span></label>
@@ -29,20 +73,70 @@
           <label><input type="radio" name="bannerAlign" value="right"><span data-i18n="banner.alignRight">Rechts</span></label>
         </div>
       </div>
+      <div class="field">
+        <div class="field-head"><label for="banner-title-size" data-i18n="banner.titleSize">Größe der Überschrift</label><output for="banner-title-size" id="banner-title-size-out"></output></div>
+        <input type="range" id="banner-title-size" min="50" max="150" step="1">
+      </div>
+      <div class="field">
+        <div class="field-head"><label for="banner-subtitle-size" data-i18n="banner.subtitleSize">Größe der Unterzeile</label><output for="banner-subtitle-size" id="banner-subtitle-size-out"></output></div>
+        <input type="range" id="banner-subtitle-size" min="50" max="150" step="1">
+      </div>
+      <div class="field">
+        <div class="field-head"><label for="banner-extra-size" data-i18n="banner.extraSize">Größe der Zusatzzeile</label><output for="banner-extra-size" id="banner-extra-size-out"></output></div>
+        <input type="range" id="banner-extra-size" min="50" max="150" step="1">
+      </div>
     </fieldset>
 
     <fieldset class="panel">
       <legend data-i18n="banner.bgHeading">Hintergrund</legend>
       <div class="field">
-        <span class="label visually-hidden" id="banner-bg-label" data-i18n="banner.bg">Hintergrund</span>
+        <span class="label" id="banner-bgcolor-label" data-i18n="banner.bgColorLabel">Hintergrundfarbe</span>
+        <div class="segmented segmented-text segmented-wrap" role="radiogroup" aria-labelledby="banner-bgcolor-label">
+          <label><input type="radio" name="bannerBgColor" value="frame"><span data-i18n="banner.bgFrame">Wie der Rahmen</span></label>
+          <label><input type="radio" name="bannerBgColor" value="custom"><span data-i18n="banner.bgCustom">Eigene Farbe</span></label>
+          <label><input type="radio" name="bannerBgColor" value="white"><span data-i18n="banner.bgWhite">Weiß</span></label>
+          <label><input type="radio" name="bannerBgColor" value="lightgray"><span data-i18n="banner.bgLightgray">Hellgrau</span></label>
+          <label><input type="radio" name="bannerBgColor" value="transparent"><span data-i18n="banner.bgTransparent">Transparent</span></label>
+        </div>
+        <p class="field-note" id="banner-transparent-hint" data-i18n="banner.transparentHint" hidden>Viele Plattformen füllen transparente Flächen mit Schwarz oder Weiß.</p>
+      </div>
+      <div id="banner-custom-colors" hidden>
+        <div class="field color-field">
+          <label for="banner-color1" data-i18n="banner.color1">Farbe</label>
+          <div class="color-inputs">
+            <input type="color" id="banner-color1">
+            <input type="text" class="hex" id="banner-color1-hex" maxlength="7" spellcheck="false" autocomplete="off" data-i18n-aria="banner.color1Hex" aria-label="Hex-Code der Farbe">
+          </div>
+        </div>
+        <div class="toggles">
+          <label class="switch"><input type="checkbox" id="banner-gradient"><span class="track" aria-hidden="true"></span><span data-i18n="banner.gradient">Farbverlauf</span></label>
+        </div>
+        <div class="field color-field" id="banner-color2-field">
+          <label for="banner-color2" data-i18n="banner.color2">Zweite Farbe</label>
+          <div class="color-inputs">
+            <input type="color" id="banner-color2">
+            <input type="text" class="hex" id="banner-color2-hex" maxlength="7" spellcheck="false" autocomplete="off" data-i18n-aria="banner.color2Hex" aria-label="Hex-Code der zweiten Farbe">
+          </div>
+        </div>
+        <div class="field" id="banner-graddir-field">
+          <span class="label" id="banner-graddir-label" data-i18n="banner.gradDir">Richtung des Verlaufs</span>
+          <div class="segmented segmented-text segmented-wrap" role="radiogroup" aria-labelledby="banner-graddir-label">
+            <label><input type="radio" name="bannerGradDir" value="h"><span data-i18n="banner.gradH">Waagerecht</span></label>
+            <label><input type="radio" name="bannerGradDir" value="v"><span data-i18n="banner.gradV">Senkrecht</span></label>
+            <label><input type="radio" name="bannerGradDir" value="d"><span data-i18n="banner.gradD">Diagonal</span></label>
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <span class="label" id="banner-bg-label" data-i18n="banner.bg">Muster oder Bild</span>
         <div class="segmented segmented-text segmented-wrap" role="radiogroup" aria-labelledby="banner-bg-label">
-          <label><input type="radio" name="bannerBg" value="color"><span data-i18n="banner.bgColor">Farbe</span></label>
+          <label><input type="radio" name="bannerBg" value="color"><span data-i18n="banner.bgColor">Ohne Muster</span></label>
           <label><input type="radio" name="bannerBg" value="dots"><span data-i18n="banner.bgDots">Punkte</span></label>
           <label><input type="radio" name="bannerBg" value="lines"><span data-i18n="banner.bgLines">Linien</span></label>
           <label><input type="radio" name="bannerBg" value="waves"><span data-i18n="banner.bgWaves">Wellen</span></label>
           <label><input type="radio" name="bannerBg" value="image"><span data-i18n="banner.bgImage">Eigenes Bild</span></label>
         </div>
-        <p class="field-note" data-i18n="banner.bgHint">Farbe und Verlauf kommen aus dem Ring deines Rahmens.</p>
+        <p class="field-note" data-i18n="banner.bgHint">Muster liegen dezent über der Hintergrundfarbe.</p>
       </div>
       <div class="button-row">
         <label class="btn btn-secondary file-button">
@@ -57,6 +151,48 @@
         <div class="field-head"><label for="banner-zoom" data-i18n="banner.zoom">Zoom</label><output for="banner-zoom" id="banner-zoom-out"></output></div>
         <input type="range" id="banner-zoom" min="1" max="4" step="0.01" value="1">
         <p class="field-note" data-i18n="banner.panHint">In der Vorschau ziehen oder Pfeiltasten verwenden, um das Bild zu verschieben.</p>
+      </div>
+    </fieldset>
+
+    <fieldset class="panel">
+      <legend data-i18n="banner.logoHeading">Logo im Banner</legend>
+      <div class="field">
+        <span class="label visually-hidden" id="banner-logo-label" data-i18n="banner.logoHeading">Logo im Banner</span>
+        <div class="segmented segmented-text segmented-wrap" role="radiogroup" aria-labelledby="banner-logo-label">
+          <label><input type="radio" name="bannerLogo" value="frame"><span data-i18n="banner.logoFrame">Wie im Rahmen</span></label>
+          <label><input type="radio" name="bannerLogo" value="own"><span data-i18n="banner.logoOwn">Eigenes Logo</span></label>
+          <label><input type="radio" name="bannerLogo" value="none"><span data-i18n="banner.logoNone">Kein Logo</span></label>
+        </div>
+      </div>
+      <div id="banner-logo-upload" hidden>
+        <div class="button-row">
+          <label class="btn btn-secondary file-button">
+            <span data-i18n="banner.logoChoose">Logo hochladen</span>
+            <input type="file" id="banner-logo-input" class="visually-hidden" accept="image/png,image/jpeg,image/webp,image/svg+xml,.png,.jpg,.jpeg,.webp,.svg">
+          </label>
+          <button type="button" class="btn btn-ghost" id="banner-logo-remove" data-i18n="banner.logoRemove" hidden>Logo entfernen</button>
+        </div>
+        <p class="small muted" data-i18n="banner.logoFormats">PNG, JPG, WebP oder SVG – bleibt auf deinem Gerät</p>
+        <p class="status" id="banner-logo-status" role="status" aria-live="polite"></p>
+      </div>
+      <div id="banner-logo-settings">
+        <div class="field">
+          <label for="banner-logo-pos" data-i18n="banner.logoPos">Position</label>
+          <select id="banner-logo-pos">
+            <option value="auto" data-i18n="banner.posAuto">Automatisch (nach Ausrichtung)</option>
+            <option value="start" data-i18n="banner.posStart">Links vom Text</option>
+            <option value="end" data-i18n="banner.posEnd">Rechts vom Text</option>
+            <option value="above" data-i18n="banner.posAbove">Über dem Text</option>
+            <option value="tl" data-i18n="banner.posTl">Ecke oben links</option>
+            <option value="tr" data-i18n="banner.posTr">Ecke oben rechts</option>
+            <option value="br" data-i18n="banner.posBr">Ecke unten rechts</option>
+          </select>
+          <p class="field-note" data-i18n="banner.logoPosHint">Unten links ist keine Ecke wählbar – dort kann dein Profilbild liegen.</p>
+        </div>
+        <div class="field">
+          <div class="field-head"><label for="banner-logo-size" data-i18n="banner.logoSize">Logogröße</label><output for="banner-logo-size" id="banner-logo-size-out"></output></div>
+          <input type="range" id="banner-logo-size" min="40" max="200" step="1">
+        </div>
       </div>
     </fieldset>
 
