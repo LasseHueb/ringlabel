@@ -1,11 +1,3 @@
-<!-- Hinweis nach dem Öffnen eines Design-Links (#d=…); wird von app.js befüllt -->
-<div class="link-notice" id="link-notice" role="status" aria-live="polite" hidden>
-  <p class="link-notice-text" id="link-notice-text"></p>
-  <div class="link-notice-actions">
-    <button type="button" class="btn btn-secondary" id="link-notice-save" data-i18n="link.save" hidden>Als eigene Vorlage speichern</button>
-    <button type="button" class="icon-button" id="link-notice-close" data-i18n-aria="link.dismiss" aria-label="Hinweis schließen">✕</button>
-  </div>
-</div>
 
 <div class="editor layout" id="editor">
   <!-- Vorschau -->
@@ -308,18 +300,4 @@
   </div>
   <p class="status" id="share-status" role="status" aria-live="polite"></p>
   <label class="small muted dont-show"><input type="checkbox" id="share-dont-show"> <span data-i18n="share.dontShow">Nicht mehr anzeigen</span></label>
-</dialog>
-
-<!-- Link-Dialog: Design als Link (#d=…) – nur Design-Einstellungen, nie Foto oder Logo -->
-<dialog class="dialog" id="link-dialog" aria-labelledby="link-title">
-  <form method="dialog" class="dialog-close-form"><button class="icon-button" value="close" data-i18n-aria="share.close" aria-label="Schließen">✕</button></form>
-  <h2 id="link-title" data-i18n="link.title">Link zu diesem Design</h2>
-  <p class="small" data-i18n="link.lead">Wer den Link öffnet, hat sofort denselben Rahmen im Editor und setzt nur noch sein eigenes Foto ein. Dein Foto ist nicht im Link enthalten.</p>
-  <label class="visually-hidden" for="link-url" data-i18n="link.fieldLabel">Link</label>
-  <div class="inline-row">
-    <input type="text" id="link-url" readonly spellcheck="false" autocomplete="off">
-    <button type="button" class="btn btn-secondary" id="link-copy" data-i18n="link.copy">Kopieren</button>
-  </div>
-  <p class="status" id="link-status" role="status" aria-live="polite"></p>
-  <p class="warning" id="link-logo-note" data-i18n="link.logoNote" hidden>Das Logo ist nicht im Link enthalten. Teile es zusätzlich oder exportiere die Vorlage als Datei.</p>
 </dialog>

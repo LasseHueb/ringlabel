@@ -545,6 +545,5 @@ window.PBG = window.PBG || {};
     };
   };
 
-  PBG.color = { hexToRgb: hexToRgb, rgba: rgba };
   PBG.text = { hasEmoji: hasEmoji, stripEmoji: stripEmoji };
 })();

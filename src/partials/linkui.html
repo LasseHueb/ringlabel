@@ -1,0 +1,23 @@
+<!-- Hinweis nach dem Öffnen eines Design-Links; wird von links.js befüllt (gemeinsam für Rahmen- und Banner-Seite) -->
+<div class="link-notice" id="link-notice" role="status" aria-live="polite" hidden>
+  <p class="link-notice-text" id="link-notice-text"></p>
+  <div class="link-notice-actions">
+    <button type="button" class="btn btn-secondary" id="link-notice-save" data-i18n="link.save" hidden>Als eigene Vorlage speichern</button>
+    <a class="btn btn-secondary" id="link-notice-goto" href="#" hidden></a>
+    <button type="button" class="icon-button" id="link-notice-close" data-i18n-aria="link.dismiss" aria-label="Hinweis schließen">✕</button>
+  </div>
+</div>
+
+<!-- Link-Dialog (gemeinsam): Design als Link – nur Einstellungen, nie Foto, Logo oder Hintergrundbild -->
+<dialog class="dialog" id="link-dialog" aria-labelledby="link-title">
+  <form method="dialog" class="dialog-close-form"><button class="icon-button" value="close" data-i18n-aria="link.close" aria-label="Schließen">✕</button></form>
+  <h2 id="link-title" data-i18n="link.title">Link zu diesem Design</h2>
+  <p class="small" data-i18n="link.lead">Wer den Link öffnet, hat sofort dasselbe Design im Editor. Fotos, Logos und Hintergrundbilder sind nicht im Link enthalten.</p>
+  <label class="visually-hidden" for="link-url" data-i18n="link.fieldLabel">Link</label>
+  <div class="inline-row">
+    <input type="text" id="link-url" readonly spellcheck="false" autocomplete="off">
+    <button type="button" class="btn btn-secondary" id="link-copy" data-i18n="link.copy">Kopieren</button>
+  </div>
+  <p class="status" id="link-status" role="status" aria-live="polite"></p>
+  <p class="warning" id="link-logo-note" data-i18n="link.logoNote" hidden>Das Logo ist nicht im Link enthalten. Teile es zusätzlich oder exportiere die Vorlage als Datei.</p>
+</dialog>
