@@ -443,6 +443,20 @@ a:hover { color: var(--accent-hover); }
 .text-button { background: none; border: 0; padding: 0; font: inherit; font-weight: 800; color: var(--accent); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
 .editor { padding-top: 12px; }
 
+/* Hinweis nach dem Öffnen eines Design-Links */
+.link-notice {
+  display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between;
+  max-width: 1200px; width: calc(100% - 32px); margin: 12px auto 0; padding: 12px 16px;
+  border: 1.5px solid var(--accent); border-radius: var(--radius);
+  background: var(--surface); font-size: .925rem;
+}
+.link-notice.error { border-color: var(--warn-text); background: var(--warn-bg); color: var(--warn-text); }
+.link-notice-text { margin: 0; flex: 1 1 260px; font-weight: 700; }
+.link-notice-actions { display: flex; gap: 10px; align-items: center; }
+.link-notice .btn-secondary { min-height: 44px; flex: 0 0 auto; }
+#link-dialog .inline-row { margin-top: 14px; }
+#link-dialog .inline-row .btn { flex: 0 0 auto; min-height: 44px; }
+
 /* Dialoge */
 .dialog {
   width: min(480px, calc(100vw - 32px)); max-height: calc(100dvh - 32px);
