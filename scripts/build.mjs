@@ -102,7 +102,8 @@ writeFileSync(join(dist, "manifest.webmanifest"), JSON.stringify({
 // 404-Seite. GitHub Pages kennt keine Server-Weiterleitungen, deshalb leitet ein Skript frühere Adressen
 // (Landingpages, Vorlagen-Seiten, Bezahl- und Firmen-Seiten) auf die Startseite um.
 // /rahmen/<name>/ und /vorlage/<name>/ öffnen dabei die gleichnamige Vorlage (?vorlage=<name>).
-// Unbekannte Pfade unter einer Sprachversion (z. B. /en/irgendwas) landen auf deren Startseite (/en/).
+// Unbekannte Pfade unter einer Sprachversion (z. B. /en/irgendwas) landen auf deren Startseite (/en/),
+// unbekannte Pfade unter /banner/ (auch /en/banner/…) auf der Banner-Seite der Sprache.
 const langPrefixes = languages.map((l) => locales[l].path).filter((p) => p !== "/").map((p) => p.replace(/^\/|\/$/g, ""));
 writeFileSync(join(dist, "404.html"), `<!doctype html>
 <html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -113,6 +114,9 @@ writeFileSync(join(dist, "404.html"), `<!doctype html>
     var path = location.pathname;
     if (path.indexOf(base + "/") !== 0) return;
     var langs = ${JSON.stringify(langPrefixes)};
+    // Unbekannte Pfade unter /banner/ bzw. /<sprache>/banner/ → Banner-Seite der Sprache
+    var b = path.slice(base.length).match(/^\\/(?:([a-z-]+)\\/)?banner(?=\\/|$)/);
+    if (b && (!b[1] || langs.indexOf(b[1]) >= 0)) { location.replace(base + (b[1] ? "/" + b[1] : "") + "/banner/"); return; }
     var l = path.slice(base.length).match(/^\\/([a-z-]+)(?=\\/|$)/);
     if (l && langs.indexOf(l[1]) >= 0) { location.replace(base + "/" + l[1] + "/"); return; }
     var m = path.slice(base.length).match(/^\\/(rahmen|vorlage|premium|unternehmen|admin|team)(?=\\/|$)(?:\\/([a-z0-9-]*))?/);
