@@ -36,11 +36,12 @@ export default function pages(ctx) {
     <h2>Haftung für Links</h2>
     <p>Diese Website enthält Links zu externen Websites Dritter, auf deren Inhalte ich keinen Einfluss habe. Für diese Inhalte ist der jeweilige Anbieter verantwortlich. Bei Bekanntwerden von Rechtsverletzungen entferne ich solche Links umgehend.</p>`;
 
-  // Muss zur Technik passen: localStorage-Schlüssel siehe public/js/platform.js (pbg-theme) und app.js
-  // (rl-own-templates, pbg-share-dismissed); keine Cookies, keine Anfragen an fremde Server (prüft scripts/check-dist.mjs).
+  // Muss zur Technik passen: localStorage-Schlüssel siehe public/js/platform.js (pbg-theme), app.js
+  // (rl-own-templates, pbg-share-dismissed) und banner.js (rl-own-banners, rl-banners-migrated); Links #d=… (app.js)
+  // und #b=… (banner.js); keine Cookies, keine Anfragen an fremde Server (prüft scripts/check-dist.mjs).
   const datenschutz = `
     <h2>Das Wichtigste in Kürze</h2>
-    <p>Deine Fotos und Logos verlassen nie deinen Browser. Die Bearbeitung und der Export finden vollständig auf deinem Gerät statt. Es gibt keine Benutzerkonten, keine Cookies, kein Tracking und keine Werbung.</p>
+    <p>Diese Website bietet zwei Werkzeuge: den Profilbild-Rahmen-Editor (Startseite) und den Profil-Banner-Editor (Seite „Profil-Banner“). Für beide gilt: Deine Fotos, Logos und Hintergrundbilder verlassen nie deinen Browser. Die Bearbeitung und der Export finden vollständig auf deinem Gerät statt. Es gibt keine Benutzerkonten, keine Cookies, kein Tracking und keine Werbung.</p>
 
     <h2>1. Verantwortlicher</h2>
     <p>${esc(L.name)}, ${esc(L.street)}, ${esc(L.city)}, ${esc(L.country)}<br>E-Mail: ${mail}</p>
@@ -50,26 +51,29 @@ export default function pages(ctx) {
     <p>Dabei können Daten in die USA übermittelt werden. GitHub ist unter dem EU-US Data Privacy Framework zertifiziert; ergänzend gelten die EU-Standardvertragsklauseln. Weitere Informationen: <a href="https://docs.github.com/de/site-policy/privacy-policies/github-general-privacy-statement" rel="noopener">docs.github.com/de/site-policy/privacy-policies/github-general-privacy-statement</a></p>
 
     <h2>3. Verarbeitung deiner Fotos und Logos</h2>
-    <p>Fotos, Logos und Hintergrundbilder für das Profil-Banner, die du auswählst, werden ausschließlich lokal in deinem Browser verarbeitet. Sie werden weder an mich noch an GitHub oder andere Dritte übertragen. Fotos und Hintergrundbilder werden nicht gespeichert: Sobald du die Seite schließt, sind sie aus dem Speicher entfernt. Ein Logo wird nur dann gespeichert, wenn du es selbst als Teil einer eigenen Vorlage sicherst (siehe Abschnitt 4). Logos werden auch nicht in geteilte Links übernommen.</p>
-    <p>Das gilt ebenso für ein eigenes Logo im Profil-Banner („Logo im Banner“ → „Eigenes Logo“): Es wird nur in deinem Browser verarbeitet, nicht übertragen und gelangt nie in Design-Links. Gespeichert wird es nur, wenn du eine eigene Vorlage sicherst – dann lokal in deinem Browser, verkleinert auf höchstens 512 Pixel.</p>
+    <p>Fotos und Logos im Rahmen-Editor sowie Logos und Hintergrundbilder im Banner-Editor, die du auswählst, werden ausschließlich lokal in deinem Browser verarbeitet. Sie werden weder an mich noch an GitHub oder andere Dritte übertragen. Fotos und Hintergrundbilder werden nicht gespeichert: Sobald du die Seite schließt, sind sie aus dem Speicher entfernt. Ein Logo wird nur dann gespeichert, wenn du es selbst als Teil einer eigenen Vorlage sicherst (siehe Abschnitt 4). Logos werden auch nicht in geteilte Links übernommen.</p>
+    <p>Das gilt ebenso für ein Logo im Profil-Banner: Es wird nur in deinem Browser verarbeitet, nicht übertragen und gelangt nie in Links. Gespeichert wird es nur, wenn du eine eigene Banner-Vorlage sicherst – dann lokal in deinem Browser, verkleinert auf höchstens 512 Pixel.</p>
+    <p>Mit „Farben aus einer Rahmen-Vorlage übernehmen“ liest der Banner-Editor die eingebauten Rahmen-Vorlagen und – falls vorhanden – deine eigenen Rahmen-Vorlagen aus dem lokalen Speicher deines Browsers, um deren Farben, Verlauf und Schrift anzuzeigen und zu übernehmen. Auch dabei wird nichts übertragen.</p>
     <p>Das gilt auch, wenn du unter „Mehrere Fotos“ bis zu 30 Fotos auf einmal bearbeitest: Die Fotos werden nur im Arbeitsspeicher deines Browsers verarbeitet, weder hochgeladen noch gespeichert – auch nicht im lokalen Speicher, in eigenen Vorlagen oder in geteilten Links – und beim Schließen oder Neuladen der Seite verworfen. Die ZIP-Datei mit den fertigen Bildern entsteht ebenfalls lokal auf deinem Gerät.</p>
 
     <h2>4. Lokaler Speicher im Browser</h2>
-    <p>Eigene Vorlagen (inklusive eines Logos) und deine Farbschema-Einstellung werden nur auf deinem Gerät im lokalen Speicher deines Browsers (localStorage) abgelegt – und nur dann, wenn du das selbst auslöst, zum Beispiel mit „Als eigene Vorlage speichern“. Diese Daten werden nicht übertragen, weder an mich noch an Dritte. Die Speicherung ist für die von dir gewünschte Funktion unbedingt erforderlich (§ 25 Abs. 2 Nr. 2 TDDDG).</p>
+    <p>Eigene Vorlagen (inklusive eines Logos) beider Werkzeuge und deine Farbschema-Einstellung werden nur auf deinem Gerät im lokalen Speicher deines Browsers (localStorage) abgelegt – und nur dann, wenn du das selbst auslöst, zum Beispiel mit „Als eigene Vorlage speichern“. Diese Daten werden nicht übertragen, weder an mich noch an Dritte. Die Speicherung ist für die von dir gewünschte Funktion unbedingt erforderlich (§ 25 Abs. 2 Nr. 2 TDDDG).</p>
     <p>Genutzt werden genau diese Einträge:</p>
     <ul>
-      <li><code>rl-own-templates</code>: deine eigenen Vorlagen mit Name, Design-Einstellungen, Banner-Einstellungen (Format, Texte, Ausrichtung, Hintergrund, Farben, Schriftgrößen, Logo-Position) und gegebenenfalls Logo und Banner-Logo – niemals dein Foto oder ein Hintergrundbild</li>
+      <li><code>rl-own-templates</code>: deine eigenen Rahmen-Vorlagen mit Name, Design-Einstellungen und gegebenenfalls Logo – niemals dein Foto. Vorlagen aus der Zeit, als das Banner noch auf der Startseite lag, enthalten zusätzlich die damaligen Banner-Einstellungen und gegebenenfalls ein Banner-Logo; sie bleiben unverändert erhalten.</li>
+      <li><code>rl-own-banners</code>: deine eigenen Banner-Vorlagen mit Name, Banner-Einstellungen (Format, Texte, Ausrichtung, Hintergrund, Farben, Schrift, Schriftgrößen, Logo-Position) und gegebenenfalls Logo – niemals ein Hintergrundbild</li>
+      <li><code>rl-banners-migrated</code>: der Vermerk, dass die Banner-Einstellungen älterer Vorlagen beim ersten Öffnen des Banner-Editors einmalig als eigene Banner-Vorlagen übernommen wurden (damit das nicht doppelt geschieht)</li>
       <li><code>pbg-theme</code>: dein gewähltes Farbschema (System, Hell oder Dunkel)</li>
       <li><code>pbg-share-dismissed</code>: dass du „Nicht mehr anzeigen“ beim Teilen-Hinweis angehakt hast</li>
     </ul>
-    <p>Löschen kannst du eigene Vorlagen jederzeit direkt auf der Seite unter „Meine Vorlagen“ oder alles zusammen über die Einstellungen deines Browsers (Websitedaten löschen). Exportierst du eine Vorlage als Datei, entsteht diese Datei auf deinem Gerät; an wen du sie weitergibst, entscheidest du selbst.</p>
+    <p>Löschen kannst du eigene Vorlagen jederzeit direkt im jeweiligen Editor unter „Meine Vorlagen“ oder alles zusammen über die Einstellungen deines Browsers (Websitedaten löschen). Exportierst du eine Vorlage als Datei, entsteht diese Datei auf deinem Gerät; an wen du sie weitergibst, entscheidest du selbst.</p>
 
     <h2>5. Keine Cookies, kein Tracking</h2>
     <p>Diese Website setzt keine Cookies und verwendet keine Analyse- oder Tracking-Dienste. Alle Schriftarten und Skripte werden direkt von dieser Website geladen, nicht von Drittanbietern.</p>
 
     <h2>6. Teilen-Funktion</h2>
     <p>Nach dem Download kannst du die App mit „Link kopieren“ oder über die Teilen-Funktion deines Geräts weiterempfehlen. Beides arbeitet lokal: Der Link wird in deine Zwischenablage kopiert bzw. an das Teilen-Menü deines Geräts übergeben. Dabei werden keine Daten an mich oder an Dritte übertragen.</p>
-    <p>Mit „Link zu diesem Design kopieren“ kannst du ein Design als Link weitergeben. Der Link enthält nur die Design-Einstellungen (zum Beispiel Text, Farben, Schrift, Symbol, Größen und Positionen) und gegebenenfalls die Einstellungen des Profil-Banners (Texte, Farben, Muster, Ausrichtung) – niemals dein Foto, niemals ein Hintergrundbild und niemals ein Logo, auch nicht das Banner-Logo. Die Einstellungen stehen im Teil der Adresse nach dem Zeichen „#“. Diesen Teil überträgt der Browser beim Aufruf der Seite nicht an den Server; er wird erst im Browser der Person ausgewertet, die den Link öffnet, und danach aus der Adresszeile entfernt. Erstellt wird der Link lokal in deinem Browser; an wen du ihn weitergibst, entscheidest du selbst. Beachte, dass alle, die den Link erhalten, den darin enthaltenen Text lesen können.</p>
+    <p>Mit „Link zu diesem Design kopieren“ (Rahmen-Editor, Adresse der Form <code>…/#d=…</code>) und „Link zu diesem Banner kopieren“ (Banner-Editor, Adresse der Form <code>…/banner/#b=…</code>) kannst du ein Design als Link weitergeben. Der Link enthält nur die Einstellungen (zum Beispiel Text, Farben, Schrift, Symbol, Muster, Größen und Positionen) – niemals dein Foto, niemals ein Hintergrundbild und niemals ein Logo. Ältere Rahmen-Links können zusätzlich Banner-Einstellungen enthalten; der Rahmen-Editor bietet dann an, sie im Banner-Editor zu öffnen. Die Einstellungen stehen im Teil der Adresse nach dem Zeichen „#“. Diesen Teil überträgt der Browser beim Aufruf der Seite nicht an den Server; er wird erst im Browser der Person ausgewertet, die den Link öffnet, und danach aus der Adresszeile entfernt. Erstellt wird der Link lokal in deinem Browser; an wen du ihn weitergibst, entscheidest du selbst. Beachte, dass alle, die den Link erhalten, den darin enthaltenen Text lesen können.</p>
 
     <h2>7. Kontakt per E-Mail</h2>
     <p>Wenn du mir eine E-Mail schreibst, verarbeite ich deine Angaben nur, um deine Anfrage zu beantworten (Art. 6 Abs. 1 lit. f DSGVO). Die E-Mail lösche ich, sobald sie erledigt ist und keine gesetzlichen Aufbewahrungspflichten bestehen.</p>
