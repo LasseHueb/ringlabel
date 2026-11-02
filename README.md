@@ -16,9 +16,27 @@ Live: <https://lassehueb.github.io/ringlabel/>
 | **Eigene Vorlagen** | „Als eigene Vorlage speichern“ (alle Design-Einstellungen und Logo, nie das Foto) im lokalen Speicher des Browsers; umbenennen, löschen, als JSON-Datei exportieren und importieren (streng geprüft, höchstens 1 MB) |
 | **Export** | PNG in 1080 × 1080 oder 2048 × 2048 px, Hintergrund transparent oder weiß, auf dem Handy direkt teilen |
 | **Teilen** | „Link kopieren“ und die Teilen-Funktion des Geräts – geteilt wird nur die Startseite |
-| **Recht** | Impressum und Datenschutzerklärung (Angaben in `config/site.json` → `legal`), Unabhängigkeitshinweis im Footer |
+| **Sprachen** | Deutsch unter `/`, Englisch unter `/en/`; Umschalter „DE \| EN“ im Header, keine automatische Weiterleitung |
+| **Recht** | Impressum und Datenschutzerklärung (Angaben in `config/site.json` → `legal`, nur auf Deutsch), Unabhängigkeitshinweis im Footer |
 
-Frühere Adressen (`/rahmen/…`, `/vorlage/…`, `/premium/`, `/unternehmen/`, `/admin/`, `/team/`) leiten über die `404.html` auf die Startseite weiter; `/rahmen/<name>/` und `/vorlage/<name>/` öffnen dabei die gleichnamige Vorlage.
+Frühere Adressen (`/rahmen/…`, `/vorlage/…`, `/premium/`, `/unternehmen/`, `/admin/`, `/team/`) leiten über die `404.html` auf die Startseite weiter; `/rahmen/<name>/` und `/vorlage/<name>/` öffnen dabei die gleichnamige Vorlage. Unbekannte Pfade unter `/en/` landen auf `/en/`.
+
+## Sprachversionen
+
+| Sprache | Adresse | `lang` | OG-Bild |
+|---|---|---|---|
+| Deutsch (Standard, `x-default`) | `/` | `de` | `img/og/home.jpg` |
+| Englisch | `/en/` | `en` | `img/og/home-en.jpg` |
+
+Beide Startseiten verweisen per `hreflang` aufeinander (plus `x-default` → Deutsch), haben je einen eigenen Canonical und stehen mit ihren Alternativen in der Sitemap. Impressum und Datenschutzerklärung gibt es nur auf Deutsch; der englische Footer verlinkt sie als „Legal notice (in German)“ und „Privacy policy (in German)“.
+
+**Wo die Texte stehen:**
+
+- `src/content.mjs` → `locales.de` / `locales.en`: Title, Description, H1, Einleitung, Text-Ideen, FAQ, strukturierte Daten (`app`), Texte im OG-Bild (`ogImage`) sowie Header, Footer, Hinweise und Unabhängigkeitshinweis (`ui`)
+- `public/js/i18n.js` → `PBG.I18N.de` / `PBG.I18N.en`: alle Editor-Texte. Der Build übersetzt das Editor-Markup (`src/partials/editor.html`) damit schon vorab und bricht ab, wenn auf `/en/` ein Schlüssel fehlt. Im Browser richtet sich die Sprache nach `<html lang>`.
+- `public/js/presets.js` und `public/js/icons.js`: Vorlagen-Namen und -Texte, Schrift- und Symbolnamen als `{ de, en }`. Englische Vorlagen-Texte kurz halten – sie dürfen auf dem Ring nicht verkleinert werden müssen.
+
+**Weitere Sprache hinzufügen:** In `src/content.mjs` einen Eintrag in `locales` mit denselben Schlüsseln wie `de` ergänzen (`path: "/<code>/"`, `og: "/img/og/home-<code>.jpg"`), ein Wörterbuch `PBG.I18N.<code>` in `i18n.js` und die Fassungen in `presets.js`/`icons.js` ergänzen, dann `node scripts/render-images.mjs <code>` ausführen. Umschalter, `hreflang`, Sitemap und 404-Weiterleitung übernehmen die neue Sprache automatisch.
 
 ## Projektstruktur
 
@@ -30,13 +48,13 @@ public/                   Statische Dateien, werden 1:1 ausgeliefert
   js/platform.js          Konfiguration, lokaler Speicher, Farbschema
   js/presets.js           Schriften, Standardwerte, Vorlagen
   js/icons.js             Symbole und Emojis für den Ring
-  js/i18n.js              Texte (Deutsch + Englisch)
+  js/i18n.js              Editor-Texte (Deutsch + Englisch)
   img/ fonts/ vendor/     OG-Bilder und Icons, lokale Schriften (OFL), heic2any
 src/
-  content.mjs             Texte der Startseite (Title, Einleitung, Ideen, FAQ)
+  content.mjs             Texte der Startseiten je Sprache (Title, Einleitung, Ideen, FAQ, Header/Footer)
   layout.mjs              Seitenlayout, Meta-Tags, strukturierte Daten, Unabhängigkeitshinweis
   partials/editor.html    Editor-Markup
-  pages/core.mjs          Startseite
+  pages/core.mjs          Startseiten (/ und /en/)
   pages/legal.mjs         Impressum und Datenschutzerklärung
 scripts/
   build.mjs               Statischer Build nach dist/ (ohne Abhängigkeiten)
@@ -59,7 +77,8 @@ OG-Bilder und Icons neu erzeugen (Playwright nur vorübergehend, keine Projekt-A
 
 ```bash
 npm i --no-save playwright && npx playwright install chromium
-npm run images
+npm run images                        # alle Sprachen und Icons
+node scripts/render-images.mjs en     # nur das englische OG-Bild (dist/ muss gebaut sein)
 ```
 
 ## Prüfung
@@ -68,7 +87,7 @@ npm run images
 
 - toten internen Links oder Ressourcen und URLs ohne `BASE_PATH`
 - den Begriffen „Premium“, „PRO“, „Stripe“ oder „Erstellt mit“
-- Namen oder Rahmen-Begriffen sozialer Netzwerke – einzige Ausnahme ist der Unabhängigkeitshinweis (`independenceNote` in `src/layout.mjs`)
+- Namen oder Rahmen-Begriffen sozialer Netzwerke, in allen Sprachversionen – einzige Ausnahme ist das Element `<p class="independence-note">` (Unabhängigkeitshinweis, `independenceNote` in `src/layout.mjs`); es darf nur Text enthalten
 - Platzhaltern oder `[eckigen Klammern]` in Impressum und Datenschutz
 - Skripten, Styles, Schriften oder Bildern von fremden Servern
 - dem alten Namen

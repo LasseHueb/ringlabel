@@ -471,7 +471,25 @@ a:hover { color: var(--accent-hover); }
 .footer-nav a:hover { color: var(--accent); }
 
 /* Mobile-Korrekturen: Kopfzeile & Datenschutz-Hinweis */
-.site-header { display: grid; grid-template-columns: 1fr auto; align-items: center; }
+.site-header { display: grid; grid-template-columns: 1fr auto auto; align-items: center; column-gap: 12px; }
+
+/* Sprachumschalter „DE | EN“ */
+.lang-switch { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: .9rem; color: var(--muted); }
+.lang-switch a { display: inline-flex; align-items: center; min-height: 34px; padding: 0 4px; color: var(--muted); text-decoration: none; }
+.lang-switch a:hover { color: var(--accent); }
+.lang-switch a[aria-current="page"] { color: var(--text); }
+@media (max-width: 480px) {
+  .site-header { column-gap: 8px; }
+  .site-header .segmented button { min-width: 32px; padding: 0 6px; }
+  .lang-switch { gap: 2px; }
+  .lang-switch a { padding: 0 3px; }
+}
+@media (max-width: 360px) {
+  .brand { gap: 8px; }
+  .brand-logo { width: 30px; height: 30px; }
+  .brand-name { font-size: 1rem; }
+  .site-header .segmented button { min-width: 28px; padding: 0 4px; }
+}
 .privacy-note { display: block; }
 .privacy-note .badge { display: inline-flex; white-space: normal; margin-right: 6px; vertical-align: top; }
 .privacy-note .badge svg { margin-top: 2px; }

@@ -4,8 +4,8 @@
  *   - alle internen Links und Ressourcen (href, src, content, Sitemap, Manifest, CSS-url()) zeigen auf existierende Dateien
  *   - alle internen URLs beginnen mit BASE_PATH (wichtig für GitHub Pages unter /<repo>/)
  *   - nirgends der alte Name „ProfilRing“ bzw. „profilring“
- *   - keine Namen oder Rahmen-Begriffe sozialer Netzwerke (Abgrenzung); erlaubt ist nur der
- *     Unabhängigkeitshinweis („… in keiner Verbindung zu …“, siehe independenceNote in src/layout.mjs)
+ *   - keine Namen oder Rahmen-Begriffe sozialer Netzwerke (Abgrenzung), in allen Sprachversionen; einzige Ausnahme ist
+ *     das Element mit der Klasse „independence-note“ (Unabhängigkeitshinweis, siehe independenceNote in src/layout.mjs)
  *   - nirgends „Premium“, „PRO“ oder „Stripe“ (alles ist kostenlos) und kein Hinweis „Erstellt mit“ im Bild; kein supabase.js
  *   - Impressum und Datenschutz ohne Platzhalter oder [eckige Klammern]
  *   - keine Skripte, Styles, Schriften oder Bilder von fremden Servern (die Datenschutzerklärung schließt das aus)
@@ -74,9 +74,16 @@ for (const f of files.filter((f) => !binary(f))) {
 
 // ---------- Abgrenzung von sozialen Netzwerken ----------
 const networkTerms = /linked\s?in|open[\s-]?to[\s-]?work|opentowork|openforwork|offen\s?für\s?jobs|hiring/i;
+// Der Unabhängigkeitshinweis ist ein <p class="… independence-note">, das nur Text enthält. Genau dieses Element
+// wird vor der Prüfung entfernt (durch Leerzeichen ersetzt, damit Zeilennummern stimmen) – sonst gibt es keine Ausnahme.
+const noteRe = /<p class="(?:[\w-]+ )*independence-note(?: [\w-]+)*">[^<]*<\/p>/g;
 for (const f of files.filter((f) => !binary(f))) {
-  readFileSync(f, "utf8").split("\n").forEach((line, i) => {
-    if (line.includes("in keiner Verbindung zu")) return;
+  let s = readFileSync(f, "utf8");
+  if (/\.html$/.test(f)) {
+    s = s.replace(noteRe, (m) => m.replace(/[^\n]/g, " "));
+    if (s.includes("independence-note")) errors.push(`Unabhängigkeitshinweis in ${rel(f)} ist kein reines Text-Element <p class="independence-note">`);
+  }
+  s.split("\n").forEach((line, i) => {
     const m = line.match(networkTerms);
     if (m) errors.push(`Netzwerk-Begriff „${m[0]}“ in ${rel(f)}:${i + 1}`);
   });

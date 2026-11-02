@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 /*
- * Erzeugt die Open-Graph-Bilder (JPEG 1200×630) für Startseite und Rechtsseiten sowie die App-Icons
- * mit dem echten Renderer im Browser. Ergebnis landet in public/img/ und wird eingecheckt.
+ * Erzeugt die Open-Graph-Bilder (JPEG 1200×630) für die Startseiten aller Sprachen und die Rechtsseiten sowie die
+ * App-Icons mit dem echten Renderer im Browser. Ergebnis landet in public/img/ und wird eingecheckt.
+ * Texte (Titel, Untertitel, Badge) und Dateiname je Sprache stehen in src/content.mjs (h1, ogImage, og).
  *
  * Voraussetzung (einmalig, nur lokal):  npm i --no-save playwright && npx playwright install chromium
- * Aufruf:                               npm run images
+ * Aufruf:                               npm run images                         (alle Sprachen + Icons)
+ *                                       node scripts/render-images.mjs en      (nur diese Sprache(n), ohne Icons; dist/ muss gebaut sein)
  * Die Beispiel-„Fotos“ sind gezeichnete Illustrationen – keine echten Personen.
  */
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -18,7 +20,10 @@ try { ({ chromium } = await import("playwright")); } catch {
   console.error("Playwright fehlt. Installieren mit: npm i --no-save playwright && npx playwright install chromium");
   process.exit(1);
 }
-const { home } = await import(pathToFileURL(join(root, "src/content.mjs")).href);
+const { locales, languages } = await import(pathToFileURL(join(root, "src/content.mjs")).href);
+const only = process.argv.slice(2);
+for (const l of only) if (!locales[l]) { console.error(`Unbekannte Sprache „${l}“ (vorhanden: ${languages.join(", ")})`); process.exit(1); }
+const langs = only.length ? only : languages;
 
 const port = 8791;
 const server = spawn(process.execPath, [join(root, "scripts/serve.mjs")], { env: { ...process.env, PORT: String(port) }, stdio: "ignore" });
@@ -26,14 +31,15 @@ await new Promise((r) => setTimeout(r, 600));
 
 const browser = await chromium.launch(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {});
 const page = await browser.newPage();
-await page.goto(`http://localhost:${port}/`);
-await page.waitForFunction(() => window.PBG && window.PBG.render);
-await page.evaluate(() => document.fonts.ready);
 
 const out = (p) => { const f = join(root, "public/img", p); mkdirSync(dirname(f), { recursive: true }); return f; };
 const save = (p, dataUrl) => writeFileSync(out(p), Buffer.from(dataUrl.split(",")[1], "base64"));
 
-// Hilfsfunktionen im Browser registrieren
+// Seite der Sprache öffnen (PBG.lang folgt dem lang-Attribut) und Hilfsfunktionen im Browser registrieren
+async function open(lang) {
+await page.goto(`http://localhost:${port}${locales[lang].path}`);
+await page.waitForFunction(() => window.PBG && window.PBG.render);
+await page.evaluate(() => document.fonts.ready);
 await page.evaluate(() => {
   const AV = [
     { bg: ["#c9dcf0", "#8fb3d9"], skin: "#f1c7a5", hair: "#3b2a20", shirt: "#2c3e50", style: "short" },
@@ -83,7 +89,7 @@ await page.evaluate(() => {
     const p = PBG.presetByKey(key);
     const s = {};
     PBG.DESIGN_KEYS.forEach((k) => { s[k] = PBG.DEFAULTS[k]; });
-    return Object.assign(s, p.values, { text: p.text.de, zoom: 1, offsetX: 0, offsetY: 0 });
+    return Object.assign(s, p.values, { text: PBG.loc(p.text), zoom: 1, offsetX: 0, offsetY: 0 });
   };
   window.__ensureFonts = async (state) => {
     const f = PBG.fontById(state.font);
@@ -104,7 +110,7 @@ await page.evaluate(() => {
     if (line) lines.push(line);
     return lines;
   };
-  window.__og = async (key, title, subtitle, i) => {
+  window.__og = async (key, title, subtitle, badge, i) => {
     const s = window.__presetState(key);
     const W = 1200, H = 630;
     const c = document.createElement("canvas"); c.width = W; c.height = H;
@@ -128,7 +134,6 @@ await page.evaluate(() => {
     x.fillText(subtitle, 70, 190 + lines.length * 68 + 40);
     // Datenschutz-Badge
     x.font = '700 22px "Nunito"';
-    const badge = "Dein Foto bleibt im Browser";
     const bw = x.measureText(badge).width + 36;
     x.fillStyle = "rgba(255,255,255,.14)";
     x.beginPath(); x.roundRect(70, H - 110, bw, 48, 24); x.fill();
@@ -136,16 +141,23 @@ await page.evaluate(() => {
     return c;
   };
 });
+}
 
-const og = async (name, key, title, sub, n) =>
-  save(`og/${name}.jpg`, await page.evaluate(async ([k, t, s, n]) => (await window.__og(k, t, s, n)).toDataURL("image/jpeg", 0.86), [key, title, sub, n]));
+const og = async (file, key, title, sub, badge, n) =>
+  save(file, await page.evaluate(async ([k, t, s, b, n]) => (await window.__og(k, t, s, b, n)).toDataURL("image/jpeg", 0.86), [key, title, sub, badge, n]));
 
-const sub = "Eigener Text · Logo · Komplett kostenlos";
-await og("home", home.preset, home.h1.replace("{app}", ""), sub, 0);
-await og("default", "recruiting", "Profilbild-Rahmen mit eigenem Text", sub, 1);
+for (const lang of langs) {
+  const loc = locales[lang];
+  await open(lang);
+  const file = loc.og.replace(/^\/img\//, "");
+  await og(file, loc.preset, loc.h1.replace("{app}", ""), loc.ogImage.subtitle, loc.ogImage.badge, 0);
+  // Standardbild der (deutschen) Rechtsseiten
+  if (lang === "de") await og("og/default.jpg", "recruiting", loc.h1, loc.ogImage.subtitle, loc.ogImage.badge, 1);
+  console.log(`✓ OG-Bild ${lang}: public/img/${file}`);
+}
 
-// App-Icons
-for (const [name, size] of [["icon-192.png", 192], ["icon-512.png", 512], ["apple-touch-icon.png", 180]]) {
+// App-Icons (nur beim Komplettlauf)
+if (!only.length) for (const [name, size] of [["icon-192.png", 192], ["icon-512.png", 512], ["apple-touch-icon.png", 180]]) {
   save(name, await page.evaluate((size) => {
     const c = document.createElement("canvas"); c.width = c.height = size;
     const x = c.getContext("2d");
@@ -160,4 +172,4 @@ for (const [name, size] of [["icon-192.png", 192], ["icon-512.png", 512], ["appl
 
 await browser.close();
 server.kill();
-console.log("✓ OG-Bilder (Startseite, Standard) und Icons erzeugt.");
+console.log(only.length ? "✓ Fertig." : "✓ OG-Bilder und Icons erzeugt.");
