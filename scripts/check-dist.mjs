@@ -141,6 +141,15 @@ for (const f of files.filter((f) => /\.(html|css)$/.test(f))) {
     return [(h * 60 + 360) % 360, s, l];
   };
   const greenOrPurple = (hex) => { const [h, s, l] = hsl(hex); return s > 0.2 && l > 0.08 && l < 0.85 && ((h >= 80 && h <= 170) || (h >= 255 && h <= 320)); };
+  // Banner-Vorlagen: keine Netzwerk-Begriffe in Namen und Texten, Anlass-Verweise auf vorhandene Rahmen-Anlässe
+  for (const bp of P.BANNER_PRESETS || []) {
+    for (const lang of ["de", "en"]) {
+      const text = ["name", "title", "subtitle", "extra"].map((f) => (bp[f] && bp[f][lang]) || "").join(" ");
+      const m = text.match(networkTerms);
+      if (m) errors.push(`Banner-Vorlage „${bp.key}“ (${lang}): Netzwerk-Begriff „${m[0]}“`);
+    }
+    if (bp.occasionOf && !(P.presetByKey(bp.occasionOf) || {}).occasion) errors.push(`Banner-Vorlage „${bp.key}“: Anlass „${bp.occasionOf}“ fehlt`);
+  }
   for (const p of P.PRESETS) {
     const v = Object.assign({}, P.DEFAULTS, p.values);
     for (const lang of ["de", "en"]) {
