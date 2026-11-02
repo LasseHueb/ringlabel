@@ -50,13 +50,13 @@ export default function pages(ctx) {
     <p>Dabei können Daten in die USA übermittelt werden. GitHub ist unter dem EU-US Data Privacy Framework zertifiziert; ergänzend gelten die EU-Standardvertragsklauseln. Weitere Informationen: <a href="https://docs.github.com/de/site-policy/privacy-policies/github-general-privacy-statement" rel="noopener">docs.github.com/de/site-policy/privacy-policies/github-general-privacy-statement</a></p>
 
     <h2>3. Verarbeitung deiner Fotos und Logos</h2>
-    <p>Fotos und Logos, die du auswählst, werden ausschließlich lokal in deinem Browser verarbeitet. Sie werden weder an mich noch an GitHub oder andere Dritte übertragen. Fotos werden nicht gespeichert: Sobald du die Seite schließt, sind sie aus dem Speicher entfernt. Ein Logo wird nur dann gespeichert, wenn du es selbst als Teil einer eigenen Vorlage sicherst (siehe Abschnitt 4). Logos werden auch nicht in geteilte Links übernommen.</p>
+    <p>Fotos, Logos und Hintergrundbilder für das Profil-Banner, die du auswählst, werden ausschließlich lokal in deinem Browser verarbeitet. Sie werden weder an mich noch an GitHub oder andere Dritte übertragen. Fotos und Hintergrundbilder werden nicht gespeichert: Sobald du die Seite schließt, sind sie aus dem Speicher entfernt. Ein Logo wird nur dann gespeichert, wenn du es selbst als Teil einer eigenen Vorlage sicherst (siehe Abschnitt 4). Logos werden auch nicht in geteilte Links übernommen.</p>
 
     <h2>4. Lokaler Speicher im Browser</h2>
     <p>Eigene Vorlagen (inklusive eines Logos) und deine Farbschema-Einstellung werden nur auf deinem Gerät im lokalen Speicher deines Browsers (localStorage) abgelegt – und nur dann, wenn du das selbst auslöst, zum Beispiel mit „Als eigene Vorlage speichern“. Diese Daten werden nicht übertragen, weder an mich noch an Dritte. Die Speicherung ist für die von dir gewünschte Funktion unbedingt erforderlich (§ 25 Abs. 2 Nr. 2 TDDDG).</p>
     <p>Genutzt werden genau diese Einträge:</p>
     <ul>
-      <li><code>rl-own-templates</code>: deine eigenen Vorlagen mit Name, Design-Einstellungen und gegebenenfalls Logo – niemals dein Foto</li>
+      <li><code>rl-own-templates</code>: deine eigenen Vorlagen mit Name, Design-Einstellungen, Banner-Einstellungen (Format, Texte, Ausrichtung, Hintergrund-Art) und gegebenenfalls Logo – niemals dein Foto oder ein Hintergrundbild</li>
       <li><code>pbg-theme</code>: dein gewähltes Farbschema (System, Hell oder Dunkel)</li>
       <li><code>pbg-share-dismissed</code>: dass du „Nicht mehr anzeigen“ beim Teilen-Hinweis angehakt hast</li>
     </ul>

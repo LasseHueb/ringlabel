@@ -10,6 +10,7 @@ import { locales, languages } from "./content.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const editorHtml = readFileSync(join(here, "partials/editor.html"), "utf8");
+const bannerHtml = readFileSync(join(here, "partials/banner.html"), "utf8");
 
 /** Editor-Wörterbücher aus public/js/i18n.js (dieselbe Datei, die der Browser lädt). */
 const i18n = (() => {
@@ -51,7 +52,16 @@ export function independenceNote(ctx, lang = "de", cls = "") {
  * Texte und Attribute mit data-i18n* schon beim Build übersetzt (kein Aufblitzen deutscher Texte, gut für Suchmaschinen).
  */
 export function editor(ctx, lang = "de") {
-  let html = editorHtml.replaceAll("{{base}}", ctx.cfg.basePath);
+  return localize(ctx, editorHtml, lang);
+}
+
+/** Profil-Banner (partials/banner.html) in der Sprache lang – übersetzt wie der Editor. */
+export function banner(ctx, lang = "de") {
+  return localize(ctx, bannerHtml, lang);
+}
+
+function localize(ctx, source, lang) {
+  let html = source.replaceAll("{{base}}", ctx.cfg.basePath);
   if (lang === "de") return html;
   const dict = i18n[lang];
   if (!dict) throw new Error(`Keine Editor-Texte für „${lang}“ in public/js/i18n.js`);
@@ -63,8 +73,10 @@ export function editor(ctx, lang = "de") {
   html = html.replace(/(<(\w+)\b[^>]*\sdata-i18n="([^"]+)"[^>]*>)[^<]*(<\/\2>)/g, (m, open, tag, key, close) => open + tr(key) + close);
   html = html.replace(/<[^>]*\sdata-i18n-aria="([^"]+)"[^>]*>/g, (tag, key) => tag.replace(/\saria-label="[^"]*"/, ` aria-label="${tr(key)}"`));
   html = html.replace(/<[^>]*\sdata-i18n-placeholder="([^"]+)"[^>]*>/g, (tag, key) => tag.replace(/>$/, ` placeholder="${tr(key)}">`));
-  // Beschriftung des Download-Buttons setzt app.js; hier nur der Startwert
+  // Beschriftung der Download-Buttons setzen app.js und banner.js; hier nur der Startwert
   html = html.replace(/(<span id="download-label">)[^<]*/, (m, open) => open + tr("export.download").replace("{size}", "1080"));
+  html = html.replace(/(<span id="banner-download-label">)[^<]*/, (m, open) => open + tr("banner.download").replace("{w}", "1584").replace("{h}", "396"));
+  html = html.replace(/(<canvas id="banner-preview"[^>]*aria-label=")[^"]*/, (m, open) => open + tr("banner.canvasLabel").replace("{w}", "1584").replace("{h}", "396"));
   const left = html.match(/data-i18n="[^"]+"[^>]*>[^<]*[äöüÄÖÜß][^<]*</);
   if (left) throw new Error(`Unübersetzter Editor-Text: ${left[0]}`);
   return html;
@@ -187,7 +199,7 @@ export function page(ctx, opts) {
   const og = ctx.abs(opts.og || "/img/og/default.jpg");
   const ld = (opts.jsonLd || []).map((d) => `<script type="application/ld+json">${JSON.stringify(d).replace(/</g, "\\u003c")}</script>`).join("\n  ");
   const editorScripts = opts.editor
-    ? ["/js/i18n.js", "/js/presets.js", "/js/icons.js", "/js/renderer.js", "/js/platform.js", "/js/app.js"]
+    ? ["/js/i18n.js", "/js/presets.js", "/js/icons.js", "/js/renderer.js", "/js/platform.js", "/js/app.js", "/js/banner.js"]
     : ["/js/i18n.js", "/js/platform.js"];
   const scripts = ["/js/config.js", ...editorScripts, ...(opts.scripts || [])];
   const ver = ctx.version;

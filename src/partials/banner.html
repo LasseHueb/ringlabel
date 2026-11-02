@@ -1,0 +1,83 @@
+<!-- Profil-Banner im Design des Rahmens (public/js/banner.js). Hintergrundbilder bleiben im Browser. -->
+<section class="section banner" id="banner" aria-labelledby="banner-h">
+  <h2 id="banner-h" data-i18n="banner.heading">Profil-Banner im gleichen Design</h2>
+  <p class="lead-small" data-i18n="banner.lead">Erstelle passend zu deinem Rahmen ein breites Banner für dein Profil. Farben, Schrift und Logo übernimmt es automatisch aus dem Rahmen oben.</p>
+
+  <div class="banner-stage" id="banner-stage">
+    <canvas id="banner-preview" tabindex="0" role="img" aria-label="Vorschau des Profil-Banners" width="1584" height="396"></canvas>
+  </div>
+  <p class="small muted banner-safe-hint" data-i18n="banner.safeHint">Schraffiert: der Bereich, den dein Profilbild verdecken kann. Bei Ausrichtung „Links“ weichen Text und Logo ihm automatisch aus, bei „Rechts“ reicht der Text nicht hinein. Die Markierung ist nicht im Download enthalten.</p>
+  <p class="warning" id="banner-warning" role="status" aria-live="polite" hidden></p>
+
+  <div class="banner-controls">
+    <fieldset class="panel">
+      <legend data-i18n="banner.textHeading">Text</legend>
+      <div class="field">
+        <label for="banner-title" data-i18n="banner.title">Überschrift</label>
+        <input type="text" id="banner-title" maxlength="60" autocomplete="off" data-i18n-placeholder="banner.titlePlaceholder">
+        <p class="field-note" data-i18n="banner.titleHint">Leer gelassen, steht hier der Text deines Rahmens.</p>
+      </div>
+      <div class="field">
+        <label for="banner-subtitle" data-i18n="banner.subtitle">Unterzeile</label>
+        <input type="text" id="banner-subtitle" maxlength="100" autocomplete="off" data-i18n-placeholder="banner.subtitlePlaceholder">
+      </div>
+      <div class="field">
+        <span class="label" id="banner-align-label" data-i18n="banner.align">Ausrichtung</span>
+        <div class="segmented segmented-text" role="radiogroup" aria-labelledby="banner-align-label">
+          <label><input type="radio" name="bannerAlign" value="left"><span data-i18n="banner.alignLeft">Links</span></label>
+          <label><input type="radio" name="bannerAlign" value="center"><span data-i18n="banner.alignCenter">Mittig</span></label>
+          <label><input type="radio" name="bannerAlign" value="right"><span data-i18n="banner.alignRight">Rechts</span></label>
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset class="panel">
+      <legend data-i18n="banner.bgHeading">Hintergrund</legend>
+      <div class="field">
+        <span class="label visually-hidden" id="banner-bg-label" data-i18n="banner.bg">Hintergrund</span>
+        <div class="segmented segmented-text segmented-wrap" role="radiogroup" aria-labelledby="banner-bg-label">
+          <label><input type="radio" name="bannerBg" value="color"><span data-i18n="banner.bgColor">Farbe</span></label>
+          <label><input type="radio" name="bannerBg" value="dots"><span data-i18n="banner.bgDots">Punkte</span></label>
+          <label><input type="radio" name="bannerBg" value="lines"><span data-i18n="banner.bgLines">Linien</span></label>
+          <label><input type="radio" name="bannerBg" value="waves"><span data-i18n="banner.bgWaves">Wellen</span></label>
+          <label><input type="radio" name="bannerBg" value="image"><span data-i18n="banner.bgImage">Eigenes Bild</span></label>
+        </div>
+        <p class="field-note" data-i18n="banner.bgHint">Farbe und Verlauf kommen aus dem Ring deines Rahmens.</p>
+      </div>
+      <div class="button-row">
+        <label class="btn btn-secondary file-button">
+          <span data-i18n="banner.imageChoose">Hintergrundbild wählen</span>
+          <input type="file" id="banner-image-input" class="visually-hidden" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp">
+        </label>
+        <button type="button" class="btn btn-ghost" id="banner-image-remove" data-i18n="banner.imageRemove" hidden>Bild entfernen</button>
+      </div>
+      <p class="small muted" data-i18n="banner.imageFormats">JPG, PNG oder WebP – bleibt auf deinem Gerät</p>
+      <p class="status" id="banner-image-status" role="status" aria-live="polite"></p>
+      <div class="field" id="banner-image-settings" hidden>
+        <div class="field-head"><label for="banner-zoom" data-i18n="banner.zoom">Zoom</label><output for="banner-zoom" id="banner-zoom-out"></output></div>
+        <input type="range" id="banner-zoom" min="1" max="4" step="0.01" value="1">
+        <p class="field-note" data-i18n="banner.panHint">In der Vorschau ziehen oder Pfeiltasten verwenden, um das Bild zu verschieben.</p>
+      </div>
+    </fieldset>
+
+    <fieldset class="panel">
+      <legend data-i18n="banner.exportHeading">Format und Download</legend>
+      <div class="field">
+        <span class="label" id="banner-format-label" data-i18n="banner.format">Format</span>
+        <div class="segmented segmented-text segmented-col" role="radiogroup" aria-labelledby="banner-format-label">
+          <label><input type="radio" name="bannerFormat" value="4x1"><span data-i18n="banner.format4x1">Breit 4:1 (1584 × 396 px)</span></label>
+          <label><input type="radio" name="bannerFormat" value="3x1"><span data-i18n="banner.format3x1">Breit 3:1 (1500 × 500 px)</span></label>
+          <label><input type="radio" name="bannerFormat" value="16x9"><span data-i18n="banner.format16x9">16:9 (1920 × 1080 px)</span></label>
+        </div>
+      </div>
+      <div class="button-row">
+        <button type="button" class="btn btn-primary" id="banner-download">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span id="banner-download-label">Banner herunterladen · 1584 × 396 px</span>
+        </button>
+      </div>
+      <p class="status" id="banner-status" role="status" aria-live="polite"></p>
+      <p class="small muted" data-i18n="banner.saveHint">Die Banner-Einstellungen werden mit „Als eigene Vorlage speichern“ mitgespeichert – ein Hintergrundbild nicht.</p>
+    </fieldset>
+  </div>
+</section>
