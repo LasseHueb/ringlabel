@@ -51,6 +51,39 @@ PBG.DEFAULTS = {
   bg: "transparent"
 };
 
+/**
+ * Profil-Banner (public/js/banner.js). Formate neutral benannt; safe = Bereich unten links (Anteile von Breite/Höhe),
+ * den das Profilbild auf vielen Plattformen verdecken kann.
+ */
+PBG.BANNER_FORMATS = {
+  "4x1": { w: 1584, h: 396, safe: { w: 0.27, y: 0.36 } },
+  "3x1": { w: 1500, h: 500, safe: { w: 0.25, y: 0.4 } },
+  "16x9": { w: 1920, h: 1080, safe: { w: 0.2, y: 0.6 }, textScale: 1.35 }
+};
+
+/** Banner-Einstellungen, die in eigenen Vorlagen und Dateien gespeichert werden (optional; nie das Hintergrundbild). */
+PBG.BANNER_DEFAULTS = { format: "4x1", title: "", subtitle: "", align: "left", bg: "color" };
+PBG.BANNER_CHOICES = { format: ["4x1", "3x1", "16x9"], align: ["left", "center", "right"], bg: ["color", "dots", "lines", "waves"] };
+PBG.BANNER_MAX = { title: 60, subtitle: 100 };
+
+/**
+ * Prüft Banner-Einstellungen aus einer Vorlage oder Datei: nur bekannte Schlüssel, nur erlaubte Werte.
+ * Gibt { banner, dropped: ["banner.<schlüssel>"] } zurück; banner ist null, wenn nichts Gültiges enthalten ist.
+ */
+PBG.validateBanner = function (raw) {
+  if (raw == null) return { banner: null, dropped: [] };
+  if (typeof raw !== "object" || Array.isArray(raw)) return { banner: null, dropped: ["banner"] };
+  var out = {}, dropped = [];
+  Object.keys(raw).forEach(function (k) {
+    var v = raw[k];
+    var ok = PBG.BANNER_CHOICES[k] ? PBG.BANNER_CHOICES[k].indexOf(v) >= 0
+      : PBG.BANNER_MAX[k] ? typeof v === "string" && v.length <= PBG.BANNER_MAX[k]
+      : false;
+    if (ok) out[k] = v; else dropped.push("banner." + k);
+  });
+  return { banner: Object.keys(out).length ? out : null, dropped: dropped };
+};
+
 /** Einstellungen, die eine Vorlage ausmachen (werden gespeichert / geteilt). */
 PBG.DESIGN_KEYS = ["text", "font", "size", "bold", "uppercase", "spacing", "textPos", "textColor", "ringColor",
   "ringColor2", "gradient", "ringWidth", "ringLength", "ringRotation", "fade", "opacity", "icon", "iconPos", "logoPos", "logoSize",
