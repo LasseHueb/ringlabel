@@ -180,6 +180,33 @@ if (!only.length) {
     }
     return c.toDataURL("image/png");
   }));
+  // Übersicht aller Banner-Vorlagen (4:1, mit gezeichnetem Beispiel-Logo, deutsche Texte)
+  save("beispiele/banner-vorlagen.png", await page.evaluate(async () => {
+    const logo = document.createElement("canvas"); logo.width = 360; logo.height = 160;
+    const lx = logo.getContext("2d");
+    lx.fillStyle = "#ffffff"; lx.beginPath(); lx.roundRect(0, 0, 360, 160, 36); lx.fill();
+    lx.fillStyle = "#1a5ccc"; lx.beginPath(); lx.arc(80, 80, 46, 0, Math.PI * 2); lx.fill();
+    lx.fillStyle = "#1f2937"; lx.font = '800 64px "Montserrat"'; lx.fillText("Logo", 145, 104);
+    await PBG.banner.setLogoDataUrl(logo.toDataURL("image/png"));
+    PBG.banner.set({ logo: "own", format: "4x1" });
+    const cols = 3, tw = 600, th = 150, gap = 18, capH = 30;
+    const rows = Math.ceil(PBG.BANNER_PRESETS.length / cols);
+    const c = document.createElement("canvas"); c.width = cols * tw + (cols + 1) * gap; c.height = rows * (th + capH) + (rows + 1) * gap;
+    const x = c.getContext("2d");
+    x.fillStyle = "#ffffff"; x.fillRect(0, 0, c.width, c.height);
+    for (let i = 0; i < PBG.BANNER_PRESETS.length; i++) {
+      const bp = PBG.BANNER_PRESETS[i];
+      document.querySelector('.banner-preset[data-key="' + bp.key + '"]').click();
+      const F = PBG.BANNER_FORMATS["4x1"];
+      const full = document.createElement("canvas"); full.width = F.w; full.height = F.h;
+      PBG.banner.render(full.getContext("2d"), F.w, F.h, {});
+      const cx = gap + (i % cols) * (tw + gap), cy = gap + Math.floor(i / cols) * (th + capH + gap);
+      x.drawImage(full, cx, cy, tw, th);
+      x.fillStyle = "#1f2937"; x.font = '700 17px "Nunito"'; x.textAlign = "left";
+      x.fillText(PBG.loc(bp.name) + " · " + PBG.t("banner.group." + bp.group), cx, cy + th + 22);
+    }
+    return c.toDataURL("image/png");
+  }));
   console.log("✓ Beispielbilder: public/img/beispiele/");
 }
 

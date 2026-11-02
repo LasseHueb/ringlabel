@@ -482,6 +482,8 @@
   }
 
   function applyPreset(p) {
+    // Banner mit eigenem Hintergrund bleibt unverändert (siehe PBG.banner.detachFromFrame)
+    if (PBG.banner) PBG.banner.detachFromFrame();
     // Foto-Ausschnitt, Export und Logo-Einstellungen bleiben beim Wechsel der Vorlage erhalten
     var keep = { zoom: state.zoom, offsetX: state.offsetX, offsetY: state.offsetY, bg: state.bg, exportSize: state.exportSize, logoPos: state.logoPos, logoSize: state.logoSize };
     Object.assign(state, presetState(p), keep);
@@ -554,7 +556,7 @@
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
     var dropped = [];
     Object.keys(raw).forEach(function (k) {
-      if (["format", "version", "id", "name", "design", "logo", "created", "banner"].indexOf(k) < 0) dropped.push(k);
+      if (["format", "version", "id", "name", "design", "logo", "created", "banner", "bannerLogo"].indexOf(k) < 0) dropped.push(k);
     });
     var d = raw.design;
     if (!d || typeof d !== "object" || Array.isArray(d)) return null;
@@ -573,6 +575,12 @@
       if (typeof raw.logo === "string" && raw.logo.length <= OWN_FILE_MAX * 1.4 && LOGO_DATA_URL.test(raw.logo)) logoUrl = raw.logo;
       else dropped.push("logo");
     }
+    // eigenes Banner-Logo (optional, wie das Rahmen-Logo nur als PNG/JPEG/WebP-Data-URL)
+    var bannerLogoUrl = null;
+    if (raw.bannerLogo != null && raw.bannerLogo !== "") {
+      if (typeof raw.bannerLogo === "string" && raw.bannerLogo.length <= OWN_FILE_MAX * 1.4 && LOGO_DATA_URL.test(raw.bannerLogo)) bannerLogoUrl = raw.bannerLogo;
+      else dropped.push("bannerLogo");
+    }
     var name = typeof raw.name === "string" ? raw.name.trim().slice(0, NAME_MAX) : "";
     return {
       template: {
@@ -581,6 +589,7 @@
         design: design,
         logo: logoUrl,
         banner: b.banner,
+        bannerLogo: bannerLogoUrl,
         created: typeof raw.created === "number" && isFinite(raw.created) ? raw.created : Date.now()
       },
       dropped: dropped
@@ -607,7 +616,10 @@
   function currentTemplate(name) {
     var design = {};
     PBG.DESIGN_KEYS.forEach(function (k) { design[k] = state[k]; });
-    return { id: newId(), name: name, design: design, logo: logo ? logoDataUrl : null, banner: PBG.banner ? PBG.banner.get() : null, created: Date.now() };
+    return {
+      id: newId(), name: name, design: design, logo: logo ? logoDataUrl : null,
+      banner: PBG.banner ? PBG.banner.get() : null, bannerLogo: PBG.banner ? PBG.banner.logoDataUrl() : null, created: Date.now()
+    };
   }
 
   /** Dekodiert das Logo einer Vorlage (Data-URL) zu einem Bild; Ergebnis wird zwischengespeichert. */
@@ -625,6 +637,8 @@
   }
 
   function applyOwnTemplate(tpl) {
+    // Vorlage ohne Banner: Banner mit eigenem Hintergrund bleibt unverändert (vor dem Wechsel des Rahmens festschreiben)
+    if (!tpl.banner && PBG.banner) PBG.banner.detachFromFrame();
     var keep = { zoom: state.zoom, offsetX: state.offsetX, offsetY: state.offsetY, bg: state.bg, exportSize: state.exportSize };
     var s0 = {};
     PBG.DESIGN_KEYS.forEach(function (k) { s0[k] = PBG.DEFAULTS[k]; });
@@ -632,6 +646,7 @@
     activePreset = "own:" + tpl.id;
     // Vorlagen ohne Banner-Einstellungen lassen das aktuelle Banner unverändert
     if (tpl.banner && PBG.banner) PBG.banner.set(tpl.banner);
+    if (tpl.bannerLogo && PBG.banner) PBG.banner.setLogoDataUrl(tpl.bannerLogo);
     endLinkOffer();
     templateLogo(tpl).then(function (img) {
       if (img) setLogoCanvas(toLogoCanvas(img, false)); else clearLogo();
@@ -652,6 +667,7 @@
   function exportOwnTemplate(tpl) {
     var data = { format: OWN_FORMAT, version: 1, name: tpl.name, design: tpl.design, logo: tpl.logo || null };
     if (tpl.banner) data.banner = tpl.banner;
+    if (tpl.bannerLogo) data.bannerLogo = tpl.bannerLogo;
     var blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     var url = URL.createObjectURL(blob);
     var a = document.createElement("a");
@@ -770,7 +786,7 @@
       actions.className = "own-actions";
       actions.appendChild(smallButton(t("own.rename"), "", function () { startRename(li, tpl); }));
       var linkBtn = smallButton(t("link.copyOwn"), "", function () {
-        openLinkDialog(Object.assign(defaultDesign(), tpl.design), !!tpl.logo);
+        openLinkDialog(Object.assign(defaultDesign(), tpl.design), !!tpl.logo || !!tpl.bannerLogo, tpl.banner);
       });
       linkBtn.setAttribute("aria-label", t("link.copyOwnLabel", { name: tpl.name }));
       actions.appendChild(linkBtn);
@@ -823,18 +839,46 @@
 
   // ---------- Design als Link (#d=…): nur Design-Einstellungen, nie Foto oder Logo ----------
   /*
-   * Format: https://…/#d=<base64url(JSON)>, JSON = { "v": 1, <PBG.DESIGN_KEYS>… } ohne Leerzeichen.
-   * „v“ ist die Formatversion: Wird das Format später geändert, bekommt es eine neue Nummer, und ältere Links
-   * werden weiter anhand ihrer Nummer gelesen. Das Fragment (#…) schickt der Browser nie an den Server.
+   * Format: https://…/#d=<base64url(JSON)>, JSON = { "v": 1, <PBG.DESIGN_KEYS>…, "banner": {…} } ohne Leerzeichen.
+   * „banner“ ist optional und enthält nur die vom Standard abweichenden Banner-Einstellungen (nie Logo oder Bild);
+   * ältere Links ohne „banner“ lassen das Banner unverändert. Weil das Format nur ergänzt wurde, bleibt es Version 1.
+   * „v“ ist die Formatversion: Wird das Format später inkompatibel geändert, bekommt es eine neue Nummer, und ältere
+   * Links werden weiter anhand ihrer Nummer gelesen. Das Fragment (#…) schickt der Browser nie an den Server.
    */
   var LINK_VERSION = 1;
-  var LINK_MAX = 2000;   // Zeichen nach „d=“; ein gültiges Design braucht höchstens etwa 1000
+  /*
+   * Höchstlänge des Werts nach „d=“. Typische Links (Rahmen + Banner mit drei Textzeilen) bleiben unter 2000 Zeichen.
+   * Im ungünstigsten gültigen Fall – alle fünf Textfelder (60 + 40 + 60 + 100 + 80 Zeichen) voll mit Zeichen, die in
+   * UTF-8 3 Byte brauchen, dazu alle übrigen Einstellungen – sind es rund 3200 Zeichen; die Grenze liegt mit 4000
+   * darüber, damit jedes gültige Design als Link funktioniert, und begrenzt trotzdem den Aufwand beim Prüfen.
+   */
+  var LINK_MAX = 4000;
   /** Beschriftungen für die Meldung, welche Angaben aus einem Link verworfen wurden. */
   var FIELD_LABELS = { text: "text.label", font: "text.font", size: "text.size", bold: "text.bold", uppercase: "text.uppercase",
     spacing: "text.spacing", textPos: "text.position", textColor: "text.color", ringColor: "ring.color", ringColor2: "ring.color2",
     gradient: "ring.gradient", ringWidth: "ring.width", ringLength: "ring.length", ringRotation: "ring.rotation", fade: "ring.fade",
     opacity: "ring.opacity", icon: "icon.label", iconPos: "icon.pos", logoPos: "logo.pos", logoSize: "logo.size",
     shape: "shape.label", textTop: "text.top", sizeTop: "text.sizeTop" };
+  var BANNER_FIELD_LABELS = { format: "banner.format", title: "banner.title", subtitle: "banner.subtitle", align: "banner.align",
+    bg: "banner.bg", bgColor: "banner.bgColorLabel", color1: "banner.color1", color2: "banner.color2", gradient: "banner.gradient",
+    gradDir: "banner.gradDir", logo: "banner.logoHeading", logoPos: "banner.logoPos", logoSize: "banner.logoSize", extra: "banner.extra",
+    extraIcon: "banner.extraIcon", titleSize: "banner.titleSize", subtitleSize: "banner.subtitleSize", extraSize: "banner.extraSize",
+    font: "banner.font", bold: "banner.bold", textColor: "banner.textColor" };
+
+  /** Verständliche Bezeichnung eines verworfenen Werts (Rahmen-Schlüssel oder „banner.<schlüssel>“). */
+  function fieldLabel(k) {
+    var bm = /^banner\.(.+)$/.exec(k);
+    if (bm) return t("banner.short") + ": " + (BANNER_FIELD_LABELS[bm[1]] ? t(BANNER_FIELD_LABELS[bm[1]]) : bm[1]);
+    if (k === "banner") return t("banner.short");
+    return FIELD_LABELS[k] ? t(FIELD_LABELS[k]) : k;
+  }
+
+  /** Banner-Einstellungen für einen Link: nur Abweichungen vom Standard; „eigenes Logo“ entfällt (Logos nie im Link). */
+  function linkBanner(b) {
+    var d = PBG.bannerDiff(b);
+    if (d && d.logo === "own") { delete d.logo; if (!Object.keys(d).length) d = null; }
+    return d;
+  }
   var linkFromUrl = false;   // aktuelles Design stammt aus einem Link (für „Als eigene Vorlage speichern“)
 
   function defaultDesign() {
@@ -862,9 +906,11 @@
   }
 
   /** Link zur aktuellen Seite (Sprache bleibt erhalten) mit dem Design im Fragment. */
-  function designLink(design) {
+  function designLink(design, banner) {
     var data = { v: LINK_VERSION };
     PBG.DESIGN_KEYS.forEach(function (k) { if (design[k] !== undefined) data[k] = design[k]; });
+    var b = banner ? linkBanner(banner) : null;
+    if (b) data.banner = b;
     return location.origin + location.pathname + "#d=" + base64urlEncode(JSON.stringify(data));
   }
 
@@ -882,15 +928,16 @@
     try { data = JSON.parse(base64urlDecode(raw)); } catch (e) { return { error: "link.errorInvalid" }; }
     if (!data || typeof data !== "object" || Array.isArray(data)) return { error: "link.errorInvalid" };
     if (data.v !== LINK_VERSION) return { error: typeof data.v === "number" ? "link.errorVersion" : "link.errorInvalid" };
-    var design = {}, dropped = [], unknown = 0;
+    var design = {}, dropped = [], unknown = 0, banner = null;
     Object.keys(data).forEach(function (k) {
       if (k === "v") return;
+      if (k === "banner") { var vb = PBG.validateBanner(data.banner); banner = vb.banner; dropped = dropped.concat(vb.dropped); return; }
       if (PBG.DESIGN_KEYS.indexOf(k) < 0) { unknown++; return; }
       var v = validValue(k, data[k]);
       if (v === undefined) dropped.push(k); else design[k] = v;
     });
     if (!Object.keys(design).length) return { error: "link.errorInvalid" };
-    return { design: design, dropped: dropped, unknown: unknown };
+    return { design: design, dropped: dropped, unknown: unknown, banner: banner };
   }
 
   /** Übernimmt ein Design; Foto-Ausschnitt, Export-Einstellungen und ein vorhandenes Logo bleiben erhalten. */
@@ -927,17 +974,22 @@
       showLinkNotice(t(r.error, { app: cfg.appName }), true, false);
       return false;
     }
+    // Link ohne Banner-Einstellungen (z. B. ältere Links): Banner bleibt, wie es ist – bei eigenem Hintergrund
+    // vor dem Wechsel des Rahmens festschreiben
+    if (!r.banner && PBG.banner) PBG.banner.detachFromFrame();
     applyDesign(r.design);
+    // banner.js lädt nach app.js: beim Öffnen der Seite die Banner-Einstellungen bereitlegen, banner.js übernimmt sie
+    if (r.banner) { if (PBG.banner) PBG.banner.set(r.banner); else PBG.pendingBanner = r.banner; }
     linkFromUrl = true;
-    var fields = r.dropped.map(function (k) { return t(FIELD_LABELS[k]); });
+    var fields = r.dropped.map(fieldLabel);
     if (r.unknown) fields.push(t("link.unknown", { count: r.unknown }));
     var msg = t("link.loaded") + (fields.length ? " " + t("link.partial", { fields: fields.join(", ") }) : "");
     showLinkNotice(msg, fields.length > 0, true);
     return true;
   }
 
-  function openLinkDialog(design, hasLogo) {
-    els.linkUrl.value = designLink(design);
+  function openLinkDialog(design, hasLogo, banner) {
+    els.linkUrl.value = designLink(design, banner);
     els.linkLogoNote.hidden = !hasLogo;
     setStatus(els.linkStatus, "");
     showDialog(els.linkDialog);
@@ -963,7 +1015,8 @@
     els.linkDesign.addEventListener("click", function () {
       var d = {};
       PBG.DESIGN_KEYS.forEach(function (k) { d[k] = state[k]; });
-      openLinkDialog(d, !!logo);
+      var b = PBG.banner ? PBG.banner.get() : null;
+      openLinkDialog(d, !!logo || !!(b && b.logo === "own" && PBG.banner.hasOwnLogo()), b);
     });
     els.linkCopy.addEventListener("click", copyLink);
     els.linkUrl.addEventListener("focus", function () { els.linkUrl.select(); });

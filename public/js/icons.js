@@ -28,6 +28,8 @@ PBG.ICONS = [
   { id: "egg", label: { de: "Osterei", en: "Easter egg" }, evenodd: true, d: "M12 2.3c-3.7 0-6.6 6.3-6.6 11.2a6.6 6.6 0 0 0 13.2 0c0-4.9-2.9-11.2-6.6-11.2zM6.7 12.6l1.8-1.3 1.8 1.3 1.7-1.3 1.8 1.3 1.7-1.3 1.8 1.3v1.9l-1.8-1.3-1.7 1.3-1.8-1.3-1.7 1.3-1.8-1.3-1.8 1.3z" },
   { id: "gradcap", label: { de: "Abschlusshut", en: "Graduation cap" }, d: "M12 3.5L1.5 8.8 12 14.1l10.5-5.3zM6 11.6v4.6c0 1.8 2.7 3.3 6 3.3s6-1.5 6-3.3v-4.6l-6 3zM20 9.8h1.3v6.4H20z" },
   { id: "sun", label: { de: "Sonne", en: "Sun" }, stroke: true, d: "M12 7.8a4.2 4.2 0 1 0 0 8.4 4.2 4.2 0 1 0 0-8.4zM18.8 12L21.6 12M16.81 7.19L18.79 5.21M12 5.2L12 2.4M7.19 7.19L5.21 5.21M5.2 12L2.4 12M7.19 16.81L5.21 18.79M12 18.8L12 21.6M16.81 16.81L18.79 18.79" },
+  { id: "mail", label: { de: "Brief", en: "Mail" }, stroke: true, d: "M3.5 6h17v12h-17zM3.5 6.5l8.5 6.5 8.5-6.5" },
+  { id: "pin", label: { de: "Ortsmarke", en: "Location pin" }, evenodd: true, d: "M12 2.2a7 7 0 0 0-7 7c0 5.1 7 12.6 7 12.6s7-7.5 7-12.6a7 7 0 0 0-7-7zM12 6.5a2.7 2.7 0 1 0 0 5.4 2.7 2.7 0 1 0 0-5.4z" },
   { id: "target", label: { de: "Ziel", en: "Target" }, stroke: true, d: "M12 3a9 9 0 1 0 0 18 9 9 0 1 0 0-18zM12 7.2a4.8 4.8 0 1 0 0 9.6 4.8 4.8 0 1 0 0-9.6zM12 11.2a.8.8 0 1 0 0 1.6.8.8 0 1 0 0-1.6z" }
 ];
 

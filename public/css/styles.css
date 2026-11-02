@@ -480,6 +480,24 @@ a:hover { color: var(--accent-hover); }
 .banner-stage canvas.dragging { cursor: grabbing; }
 .banner-stage canvas:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .banner-safe-hint { margin: 10px 0 0; }
+/* Banner-Vorlagen und transparenter Hintergrund (Schachbrett nur in der Vorschau) */
+.banner-templates { margin-top: 16px; }
+.banner-templates h3 { margin: 0 0 4px; font-size: 1.1rem; }
+.banner-templates .switch { margin: 6px 0 4px; }
+.banner-current { margin: 10px 0 4px; padding: 4px 12px 12px; border: 1.5px solid var(--accent); border-radius: 12px; }
+.banner-presets { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+.banner-preset {
+  display: flex; flex-direction: column; gap: 6px; align-items: stretch; padding: 8px;
+  border: 1.5px solid var(--border); border-radius: 12px; background: var(--surface-2); color: var(--text);
+  font: inherit; font-size: .8rem; font-weight: 700; text-align: center; cursor: pointer;
+}
+.banner-preset:hover { border-color: var(--accent); }
+.banner-preset[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent) inset; }
+.banner-preset:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.banner-preset canvas { display: block; width: 100%; height: auto; border-radius: 6px; }
+.banner-stage.is-transparent canvas, .banner-preset.is-transparent canvas {
+  background: repeating-conic-gradient(#d9dde3 0% 25%, #ffffff 0% 50%) 0 0 / 16px 16px;
+}
 .banner-controls { display: grid; gap: 16px; margin-top: 16px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); align-items: start; }
 .banner-controls .panel { margin: 0; }
 .segmented-col { display: flex; flex-direction: column; align-items: stretch; }
