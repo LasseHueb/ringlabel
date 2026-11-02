@@ -510,6 +510,9 @@ a:hover { color: var(--accent-hover); }
 .privacy-note strong { white-space: normal; }
 .presets-list.collapsed .preset:nth-child(n+10) { display: none; }
 .more-presets { margin-top: 10px; }
+/* Anlässe: „Gerade passend“ oben hervorgehoben, „Anlässe“ unter den Vorlagen */
+.current-presets { margin: 4px 0 14px; padding: 4px 12px 12px; border: 1.5px solid var(--accent); border-radius: 12px; }
+.occasion-presets { margin-top: 18px; }
 .prose, .legal { overflow-wrap: break-word; hyphens: auto; }
 
 /* Ideen für den Text */

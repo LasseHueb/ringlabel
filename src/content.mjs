@@ -7,6 +7,9 @@
  * Vorlagen-Texte in public/js/presets.js. Deutsch liegt unter /, jede weitere Sprache unter /<code>/.
  */
 
+/** Aktuelles Jahr beim Build (Beispiel „Azubi seit …“ in den Text-Ideen; im Editor setzt der Browser das Jahr selbst ein). */
+const year = new Date().getFullYear();
+
 export const locales = {
   de: {
     lang: "de",
@@ -46,6 +49,12 @@ export const locales = {
         preset: "team-gesucht",
         text: "Mit eurem Logo und euren Farben sehen alle Profilbilder einheitlich aus. Speichert das Design als eigene Vorlage und gebt die Datei im Team weiter.",
         examples: ["Komm in unser Team", "Logo statt Text", "Wir sind dabei: Messe 2027"]
+      },
+      {
+        title: "Anlässe",
+        preset: "@anlass",
+        text: "Von Weihnachten über den Ausbildungsstart bis zur Sommerpause: Passende Vorlagen erscheinen im Editor zur richtigen Zeit oben unter „Gerade passend“.",
+        examples: ["Frohe Weihnachten", `Azubi seit ${year}`, "Gerade im Urlaub"]
       }
     ],
 
@@ -124,6 +133,12 @@ export const locales = {
         preset: "team-gesucht",
         text: "With your logo and brand colours, everyone's profile picture looks consistent. Save the design as your own template and share the file with your team.",
         examples: ["Join our team", "Logo instead of text", "See you at Expo 2027"]
+      },
+      {
+        title: "Occasions",
+        preset: "@anlass",
+        text: "From Christmas to starting an apprenticeship to the summer break: matching templates appear in the editor at the right time, at the top under “Right now”.",
+        examples: ["Merry Christmas", `Apprentice since ${year}`, "Currently on holiday"]
       }
     ],
 

@@ -57,7 +57,9 @@ PBG.DESIGN_KEYS = ["text", "font", "size", "bold", "uppercase", "spacing", "text
   "shape", "textTop", "sizeTop"];
 
 /**
- * Vorlagen. key = URL-Slug (/vorlage/<key>/). name/text (und optional textTop) je Sprache.
+ * Vorlagen. key = URL-Slug (/vorlage/<key>/). name/text (und optional textTop) je Sprache; {year} im Text wird durch
+ * das aktuelle Jahr ersetzt. occasion = Zeitfenster eines Anlasses (siehe PBG.isOccasionNow) – solche Vorlagen stehen
+ * in der Gruppe „Anlässe“ und im Zeitfenster oben unter „Gerade passend“.
  * Die ersten Vorlagen sind bewusst schlicht (kein Verlauf, Standardschriften, keine Symbole).
  * Keine Logos, Markennamen oder Original-Farbtöne fremder Plattformen.
  */
@@ -126,6 +128,7 @@ PBG.PRESETS = [
   { key: "neuer-job", name: { de: "Neuer Job", en: "New job" }, text: { de: "#NEUERJOB", en: "#NEWJOB" },
     values: { gradient: true, ringColor: "#ff6d00", ringColor2: "#ffd600", textColor: "#1b1b1b", font: "Archivo Black", size: 62, icon: "sparkle", iconPos: "both" } },
   { key: "messe", name: { de: "Messe & Events", en: "Trade fair" }, text: { de: "Triff mich auf der Messe", en: "Meet me at the fair" },
+    occasion: ["02-15/04-30", "09-01/11-15"],
     values: { gradient: true, ringColor: "#004d40", ringColor2: "#1565c0", font: "Raleway", uppercase: false, icon: "calendar", iconPos: "start", ringLength: 280 } },
   // ---------- Formen: Bogen mit Text oben, voller Ring, Badge ----------
   { key: "neue-wege", name: { de: "Neue Wege", en: "New paths" }, text: { de: "Neue Wege", en: "New paths" },
@@ -137,9 +140,81 @@ PBG.PRESETS = [
   { key: "badge-neugierig", name: { de: "Badge Neugierig", en: "Curious badge" }, text: { de: "Immer neugierig", en: "Always curious" },
     values: { shape: "badge", ringColor: "#263238", textColor: "#ffd54f", font: "Poppins", uppercase: false, ringWidth: 18, size: 60, icon: "bulb", iconPos: "start" } },
 
+  // ---------- Anlässe: Zeitfenster "MM-TT/MM-TT" (über den Jahreswechsel möglich) oder relativ zu Ostern ----------
+  { key: "weihnachten", name: { de: "Weihnachten", en: "Christmas" }, text: { de: "Frohe Weihnachten", en: "Merry Christmas" },
+    occasion: ["12-01/12-26"],
+    values: { shape: "ring", gradient: true, ringColor: "#7f0000", ringColor2: "#c62828", textColor: "#fff8e1", font: "Playfair Display", uppercase: false, ringWidth: 16, icon: "tree", iconPos: "both" } },
+  { key: "jahreswechsel", name: { de: "Jahreswechsel", en: "New Year" }, text: { de: "Frohes neues Jahr", en: "Happy New Year" },
+    occasion: ["12-27/01-10"],
+    values: { gradient: true, ringColor: "#0d1b3e", ringColor2: "#3949ab", textColor: "#ffd54f", font: "Bebas Neue", size: 85, spacing: 12, ringLength: 240, icon: "glass", iconPos: "both" } },
+  { key: "ostern", name: { de: "Ostern", en: "Easter" }, text: { de: "Frohe Ostern", en: "Happy Easter" },
+    occasion: ["easter-14/easter+1"],
+    values: { shape: "badge", ringColor: "#fff1b8", textColor: "#5d4037", font: "Nunito", uppercase: false, ringWidth: 19, size: 64, icon: "egg", iconPos: "start" } },
+  { key: "azubi-start", name: { de: "Ausbildungsbeginn", en: "Starting an apprenticeship" }, text: { de: "Azubi seit {year}", en: "Apprentice since {year}" },
+    textTop: { de: "Los geht's!", en: "Here we go!" },
+    occasion: ["08-01/09-30"],
+    values: { gradient: true, ringColor: "#0277bd", ringColor2: "#26c6da", font: "Poppins", uppercase: false, ringLength: 230, sizeTop: 55, icon: "rocket", iconPos: "end" } },
+  { key: "ausbildung-geschafft", name: { de: "Ausbildung geschafft", en: "Apprenticeship completed" }, text: { de: "Ausbildung geschafft", en: "Apprenticeship completed" },
+    occasion: ["01-15/02-28", "06-01/07-31"],
+    values: { shape: "ring", gradient: true, ringColor: "#f9a825", ringColor2: "#ff6f00", textColor: "#1b1b1b", font: "Montserrat", uppercase: false, ringWidth: 15, icon: "gradcap", iconPos: "start" } },
+  { key: "neues-jahr-ziele", name: { de: "Neues Jahr im Job", en: "New year at work" }, text: { de: "Neues Jahr, neue Ziele", en: "New year, new goals" },
+    occasion: ["01-02/01-31"],
+    values: { shape: "badge", gradient: true, ringColor: "#1a237e", ringColor2: "#00838f", font: "Oswald", uppercase: false, ringWidth: 18, size: 60, spacing: 3, icon: "target", iconPos: "start" } },
+  { key: "sommerpause", name: { de: "Sommerpause", en: "Summer break" }, text: { de: "Gerade im Urlaub", en: "Currently on holiday" },
+    occasion: ["07-01/08-31"],
+    values: { gradient: true, ringColor: "#ff8f00", ringColor2: "#ffca28", textColor: "#3e2723", font: "Caveat", uppercase: false, size: 88, spacing: 2, ringLength: 230, ringRotation: -20, icon: "sun", iconPos: "start" } },
+
   { key: "ruhestand", name: { de: "Ruhestand", en: "Retired" }, text: { de: "Im Ruhestand", en: "Retired" },
     values: { gradient: true, ringColor: "#5d4037", ringColor2: "#a1887f", font: "Playfair Display", uppercase: false, icon: "leaf", iconPos: "end" } }
 ];
+
+/**
+ * Heutiges Datum für „Gerade passend“: das Datum des Geräts. Nur auf localhost lässt sich zum Testen ein Datum
+ * simulieren: ?datum=JJJJ-MM-TT.
+ */
+PBG.today = function () {
+  if (/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) {
+    var m = /[?&]datum=(\d{4})-(\d{2})-(\d{2})(?:&|$)/.exec(location.search);
+    if (m) return new Date(+m[1], +m[2] - 1, +m[3], 12);
+  }
+  return new Date();
+};
+
+/** Ostersonntag (gregorianisch, Algorithmus nach Meeus/Jones/Butcher). */
+PBG.easter = function (y) {
+  var a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4;
+  var f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30;
+  var i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
+  var n = h + l - 7 * m + 114;
+  return new Date(y, Math.floor(n / 31) - 1, (n % 31) + 1, 12);
+};
+
+/**
+ * Liegt date in einem der Zeitfenster der Vorlage? Fenster (jeweils einschließlich):
+ *   "12-01/12-26"         Monat-Tag bis Monat-Tag; "12-27/01-10" läuft über den Jahreswechsel
+ *   "easter-14/easter+1"  Tage relativ zum Ostersonntag des Jahres von date
+ */
+PBG.isOccasionNow = function (p, date) {
+  if (!p || !p.occasion) return false;
+  var day = function (d) { return Math.round(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 864e5); };
+  var today = day(date), y = date.getFullYear();
+  var point = function (spec) {
+    var e = /^easter([+-]\d+)?$/.exec(spec);
+    if (e) return day(PBG.easter(y)) + (e[1] ? parseInt(e[1], 10) : 0);
+    var md = /^(\d{2})-(\d{2})$/.exec(spec);
+    return md ? day(new Date(y, +md[1] - 1, +md[2], 12)) : NaN;
+  };
+  return p.occasion.some(function (w) {
+    var parts = w.split("/"), from = point(parts[0]), to = point(parts[1]);
+    if (isNaN(from) || isNaN(to)) return false;
+    return from <= to ? today >= from && today <= to : today >= from || today <= to;
+  });
+};
+
+/** Text einer Vorlage in der aktuellen Sprache, {year} = aktuelles Jahr. */
+PBG.presetText = function (p, field, date) {
+  return PBG.loc(p[field]).replace(/\{year\}/g, String((date || PBG.today()).getFullYear()));
+};
 
 PBG.presetByKey = function (key) {
   for (var i = 0; i < PBG.PRESETS.length; i++) if (PBG.PRESETS[i].key === key) return PBG.PRESETS[i];

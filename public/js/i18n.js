@@ -37,6 +37,9 @@ PBG.I18N = {
     "presets.more": "Alle {count} Vorlagen anzeigen",
     "presets.less": "Weniger anzeigen",
     "presets.builtin": "Vorlagen",
+    "presets.current": "Gerade passend",
+    "presets.occasions": "Anlässe",
+    "presets.occasionsHint": "Für Feiertage und besondere Momente. Was gerade passt, steht oben unter „Gerade passend“.",
 
     "own.heading": "Meine Vorlagen",
     "own.empty": "Noch keine eigenen Vorlagen. Gestalte deinen Rahmen und speichere ihn hier – auf diesem Gerät, ohne Foto.",
@@ -211,6 +214,9 @@ PBG.I18N = {
     "presets.more": "Show all {count} templates",
     "presets.less": "Show less",
     "presets.builtin": "Templates",
+    "presets.current": "Right now",
+    "presets.occasions": "Occasions",
+    "presets.occasionsHint": "For holidays and special moments. Whatever fits the season is shown at the top under “Right now”.",
 
     "own.heading": "My templates",
     "own.empty": "No templates of your own yet. Design your frame and save it here – on this device, without your photo.",

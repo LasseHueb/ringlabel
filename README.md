@@ -12,7 +12,8 @@ Live: <https://lassehueb.github.io/ringlabel/>
 |---|---|
 | **Editor** | Foto laden (JPG, PNG, WebP, HEIC), Zuschnitt per Ziehen/Zoomen, gebogener Text, alle Schriften, Farben und Farbverläufe, Symbole und Emojis im Ring, Ringbreite/-länge/-drehung, Live-Vorschau |
 | **Formen** | „Bogen“ (Standard), „Voller Ring“ (geschlossen rund um das Foto) und „Badge“ (abgerundetes Schild unten, Text gerade); bei Bogen und vollem Ring optional ein zweiter „Text oben“ |
-| **Vorlagen** | 35 mitgelieferte Vorlagen, dazu Ideen für Jobsuche, Recruiting, Selbstständige und Firmen mit „Vorlage übernehmen“ |
+| **Anlässe** | 8 Vorlagen für Feiertage und besondere Momente (Weihnachten, Jahreswechsel, Ostern, Ausbildungsbeginn, Ausbildung geschafft, Messe & Events, Neues Jahr im Job, Sommerpause); im passenden Zeitfenster oben unter „Gerade passend“ |
+| **Vorlagen** | 34 mitgelieferte Vorlagen, dazu Ideen für Jobsuche, Recruiting, Selbstständige und Firmen mit „Vorlage übernehmen“ |
 | **Logo** | PNG, JPG, WebP oder SVG, auf höchstens 512 px verkleinert; links vom Text, rechts vom Text oder statt Text; Größe einstellbar |
 | **Design als Link** | „Link zu diesem Design kopieren“ im Vorlagen-Bereich und bei jeder eigenen Vorlage; wer den Link öffnet, hat sofort denselben Rahmen im Editor (ohne Foto und Logo) |
 | **Eigene Vorlagen** | „Als eigene Vorlage speichern“ (alle Design-Einstellungen und Logo, nie das Foto) im lokalen Speicher des Browsers; umbenennen, löschen, als JSON-Datei exportieren und importieren (streng geprüft, höchstens 1 MB) |
@@ -22,6 +23,40 @@ Live: <https://lassehueb.github.io/ringlabel/>
 | **Recht** | Impressum und Datenschutzerklärung (Angaben in `config/site.json` → `legal`, nur auf Deutsch), Unabhängigkeitshinweis im Footer |
 
 Frühere Adressen (`/rahmen/…`, `/vorlage/…`, `/premium/`, `/unternehmen/`, `/admin/`, `/team/`) leiten über die `404.html` auf die Startseite weiter; `/rahmen/<name>/` und `/vorlage/<name>/` öffnen dabei die gleichnamige Vorlage. Unbekannte Pfade unter `/en/` landen auf `/en/`.
+
+## Anlässe und „Gerade passend“
+
+![Anlässe](public/img/beispiele/anlaesse.png)
+
+Vorlagen mit einem Zeitfenster (`occasion` in `public/js/presets.js`) stehen im Editor in der Gruppe „Anlässe“. Liegt das heutige Datum des Geräts im Zeitfenster, erscheinen sie stattdessen oben im Vorlagen-Bereich unter „Gerade passend“. Das passiert nur im Browser; es wird nichts übertragen.
+
+| Anlass | Schlüssel | Zeitfenster |
+|---|---|---|
+| Weihnachten | `weihnachten` | 1.12.–26.12. |
+| Jahreswechsel | `jahreswechsel` | 27.12.–10.1. |
+| Ostern | `ostern` | 14 Tage vor Ostersonntag bis Ostermontag (jedes Jahr neu berechnet) |
+| Ausbildungsbeginn | `azubi-start` | 1.8.–30.9. |
+| Ausbildung geschafft | `ausbildung-geschafft` | 15.1.–28.2. und 1.6.–31.7. (Prüfungszeiten) |
+| Messe & Events | `messe` | 15.2.–30.4. und 1.9.–15.11. (Messesaison) |
+| Neues Jahr im Job | `neues-jahr-ziele` | 2.1.–31.1. |
+| Sommerpause | `sommerpause` | 1.7.–31.8. |
+
+**Neuen Anlass hinzufügen:**
+
+1. In `public/js/presets.js` im Abschnitt „Anlässe“ einen Eintrag ergänzen:
+   ```js
+   { key: "schulstart", name: { de: "Schulstart", en: "Back to school" }, text: { de: "Schulstart {year}", en: "Back to school {year}" },
+     occasion: ["08-15/09-15"],
+     values: { shape: "badge", ringColor: "#2e7d32", textColor: "#ffffff", font: "Poppins", uppercase: false, icon: "star", iconPos: "start" } },
+   ```
+   - `occasion`: ein oder mehrere Zeitfenster `"MM-TT/MM-TT"` (jeweils einschließlich; `"12-27/01-10"` läuft über den Jahreswechsel) oder relativ zu Ostern, z. B. `"easter-14/easter+1"`.
+   - `{year}` im Text wird durch das aktuelle Jahr ersetzt; `textTop` (Text oben) ist optional.
+   - Texte kurz halten: Sie sollen auf den Ring bzw. das Badge passen, ohne verkleinert zu werden.
+2. Bei Bedarf ein Symbol in `public/js/icons.js` ergänzen (24 × 24-Pfad, selbst gezeichnet, `stroke: true` für Linien).
+3. `npm run build && npm run check` – die Prüfung meldet ungültige Zeitfenster und eine Gestaltung, die an Netzwerk-Rahmen erinnert (grüner oder lila Bogen unten/links mit heller Hashtag-Schrift in Großbuchstaben).
+4. `npm run images` aktualisiert die Übersicht `public/img/beispiele/anlaesse.png`.
+
+**Testen mit anderem Datum:** Nur auf `localhost` bzw. `127.0.0.1` lässt sich ein Datum simulieren, z. B. `http://localhost:8080/?datum=2026-12-24`. Auf der veröffentlichten Seite wird der Parameter ignoriert und immer das Datum des Geräts verwendet.
 
 ## Formen und Text oben
 
