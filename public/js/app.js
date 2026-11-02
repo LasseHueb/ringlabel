@@ -35,7 +35,8 @@
     preview: $("preview"), stage: $("stage"),
     fileInput: $("file-input"), dropzone: $("dropzone"), uploadStatus: $("upload-status"),
     zoom: $("zoom"), resetCrop: $("reset-crop"), removePhoto: $("remove-photo"),
-    presets: $("presets"),
+    presets: $("presets"), presetsCurrent: $("presets-current"), currentSection: $("current-presets"),
+    presetsOccasions: $("presets-occasions"), occasionSection: $("occasion-presets"),
     text: $("text"), textReplaced: $("text-replaced"), font: $("font"), bold: $("bold"), uppercase: $("uppercase"),
     textTop: $("textTop"), shapeHint: $("shape-hint"), ringWidthLabel: $("ringWidth-label"),
     ownList: $("own-list"), ownEmpty: $("own-empty"), ownSaveForm: $("own-save-form"), ownName: $("own-name"),
@@ -384,28 +385,34 @@
 
   // ---------- Vorlagen ----------
   var PRESETS_VISIBLE = 9;   // so viele Vorlagen sind sichtbar, der Rest per „Alle … anzeigen“
+
+  /**
+   * Verteilt die Vorlagen: normale Vorlagen in die Liste „Vorlagen“, Anlässe nach „Anlässe“ – außer sie liegen im
+   * Zeitfenster (Datum des Geräts), dann stehen sie oben unter „Gerade passend“.
+   */
+  function presetGroups() {
+    var today = PBG.today();
+    var g = { regular: [], current: [], occasions: [] };
+    PBG.PRESETS.forEach(function (p) {
+      if (!p.occasion) g.regular.push(p);
+      else if (PBG.isOccasionNow(p, today)) g.current.push(p);
+      else g.occasions.push(p);
+    });
+    return g;
+  }
+
   function buildPresets() {
     if (!els.presets) return;
-    els.presets.innerHTML = "";
-    PBG.PRESETS.forEach(function (p) {
-      var btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "preset";
-      btn.dataset.key = p.key;
-      btn.dataset.name = PBG.loc(p.name);
-      btn.setAttribute("aria-pressed", "false");
-      var c = document.createElement("canvas");
-      c.setAttribute("aria-hidden", "true");
-      var label = document.createElement("span");
-      label.textContent = PBG.loc(p.name);
-      btn.appendChild(c);
-      btn.appendChild(label);
-      btn.addEventListener("click", function () { applyPreset(p); });
-      els.presets.appendChild(btn);
+    var groups = presetGroups();
+    [[els.presets, groups.regular], [els.presetsCurrent, groups.current], [els.presetsOccasions, groups.occasions]].forEach(function (pair) {
+      pair[0].innerHTML = "";
+      pair[1].forEach(function (p) { pair[0].appendChild(presetButton(p)); });
     });
+    els.currentSection.hidden = !groups.current.length;
+    els.occasionSection.hidden = !groups.occasions.length;
     var more = $("more-presets");
     if (more) {
-      var count = PBG.PRESETS.length;
+      var count = groups.regular.length;
       var setLabel = function () {
         var open = !els.presets.classList.contains("collapsed");
         more.textContent = open ? t("presets.less") : t("presets.more", { count: count });
@@ -419,10 +426,27 @@
     markPreset();
   }
 
+  function presetButton(p) {
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "preset";
+    btn.dataset.key = p.key;
+    btn.dataset.name = PBG.loc(p.name);
+    btn.setAttribute("aria-pressed", "false");
+    var c = document.createElement("canvas");
+    c.setAttribute("aria-hidden", "true");
+    var label = document.createElement("span");
+    label.textContent = PBG.loc(p.name);
+    btn.appendChild(c);
+    btn.appendChild(label);
+    btn.addEventListener("click", function () { applyPreset(p); });
+    return btn;
+  }
+
   function presetState(p) {
     var s = {};
     PBG.DESIGN_KEYS.forEach(function (k) { s[k] = PBG.DEFAULTS[k]; });
-    Object.assign(s, p.values, { text: PBG.loc(p.text), textTop: PBG.loc(p.textTop) });
+    Object.assign(s, p.values, { text: PBG.presetText(p, "text"), textTop: PBG.presetText(p, "textTop") });
     return s;
   }
 
@@ -438,7 +462,7 @@
       var s = Object.assign({ zoom: 1, offsetX: 0, offsetY: 0 }, presetState(p));
       ensureFont(s).then(function () { PBG.render(c.getContext("2d"), s, null, size); });
     }
-    var btns = els.presets.querySelectorAll(".preset");
+    var btns = document.querySelectorAll("#presets .preset, #presets-current .preset, #presets-occasions .preset");
     // Vorschaubilder erst zeichnen, wenn sie sichtbar werden (schnellerer Seitenaufbau)
     if (window.IntersectionObserver) {
       if (thumbObserver) thumbObserver.disconnect();
@@ -464,11 +488,19 @@
     requestRender();
   }
 
-  /** Buttons „Vorlage übernehmen“ im Ideen-Abschnitt der Seite. */
+  /**
+   * Buttons „Vorlage übernehmen“ im Ideen-Abschnitt der Seite.
+   * "@anlass" = der erste gerade passende Anlass, sonst der erste Anlass überhaupt.
+   */
   function bindPresetButtons() {
     document.querySelectorAll("[data-apply-preset]").forEach(function (b) {
       b.addEventListener("click", function () {
-        var p = PBG.presetByKey(b.getAttribute("data-apply-preset"));
+        var key = b.getAttribute("data-apply-preset");
+        var p;
+        if (key === "@anlass") {
+          var g = presetGroups();
+          p = g.current[0] || g.occasions[0];
+        } else p = PBG.presetByKey(key);
         if (!p) return;
         applyPreset(p);
         els.stage.scrollIntoView({ behavior: "smooth", block: "center" });

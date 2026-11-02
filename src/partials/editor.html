@@ -58,6 +58,12 @@
       <legend data-i18n="presets.heading">2. Vorlage</legend>
       <p class="small muted" data-i18n="presets.hint">Startpunkt wählen – danach alles frei anpassbar.</p>
 
+      <!-- Anlässe im aktuellen Zeitfenster (Datum des Geräts), siehe occasion in public/js/presets.js -->
+      <section class="current-presets" id="current-presets" aria-labelledby="current-heading" hidden>
+        <h3 class="preset-group" id="current-heading" data-i18n="presets.current">Gerade passend</h3>
+        <div class="presets presets-list" id="presets-current"></div>
+      </section>
+
       <!-- Eigene Vorlagen: nur im lokalen Speicher dieses Browsers, nie mit Foto -->
       <section class="own-templates" aria-labelledby="own-heading">
         <h3 class="preset-group" id="own-heading" data-i18n="own.heading">Meine Vorlagen</h3>
@@ -83,6 +89,12 @@
       <h3 class="preset-group" data-i18n="presets.builtin">Vorlagen</h3>
       <div class="presets presets-list collapsed" id="presets"></div>
       <button type="button" class="btn btn-ghost more-presets" id="more-presets" aria-controls="presets" aria-expanded="false"></button>
+
+      <section class="occasion-presets" id="occasion-presets" aria-labelledby="occasions-heading">
+        <h3 class="preset-group" id="occasions-heading" data-i18n="presets.occasions">Anlässe</h3>
+        <p class="small muted" data-i18n="presets.occasionsHint">Für Feiertage und besondere Momente. Was gerade passt, steht oben unter „Gerade passend“.</p>
+        <div class="presets presets-list" id="presets-occasions"></div>
+      </section>
     </fieldset>
 
     <!-- 3. Text -->
