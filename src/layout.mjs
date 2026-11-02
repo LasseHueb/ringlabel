@@ -199,7 +199,7 @@ function langSwitch(ctx, lang, langPaths) {
 /** Navigation zwischen den beiden Werkzeugen; auf schmalen Bildschirmen mit Kurzbezeichnungen. */
 function toolNav(ctx, lang, tool) {
   const l = ui(lang);
-  const item = (key, path, label, short) => `<a href="${ctx.u(path)}"${tool === key ? ' aria-current="page"' : ""}><span class="nav-long">${esc(label)}</span><span class="nav-short" aria-hidden="true">${esc(short)}</span></a>`;
+  const item = (key, path, label, short) => `<a href="${ctx.u(path)}" aria-label="${esc(label)}"${tool === key ? ' aria-current="page"' : ""}><span class="nav-long">${esc(label)}</span><span class="nav-short" aria-hidden="true">${esc(short)}</span></a>`;
   return `<nav class="tool-nav" aria-label="${esc(l.navLabel)}">
       ${item("frame", locales[lang].path, l.navFrame, l.navFrameShort)}
       ${item("banner", locales[lang].bannerPage.path, l.navBanner, l.navBannerShort)}

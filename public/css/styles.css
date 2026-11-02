@@ -457,6 +457,13 @@ a:hover { color: var(--accent-hover); }
   .tool-nav { gap: 2px; }
   .tool-nav a { padding: 0 8px; font-size: .85rem; min-height: 34px; }
 }
+@media (max-width: 400px) {
+  /* sehr schmal: nur die jeweils andere Sprache zeigen, Design-Umschalter kompakter */
+  .lang-switch a[aria-current="page"], .lang-switch span { display: none; }
+  .site-header { column-gap: 6px; }
+  .site-header .segmented { padding: 2px; gap: 0; }
+  .site-header .segmented button { min-width: 28px; padding: 0 4px; }
+}
 @media (max-width: 360px) {
   .brand { gap: 8px; }
   .brand-logo { width: 30px; height: 30px; }
