@@ -1,0 +1,49 @@
+<!-- Mehrere Fotos (public/js/batch.js): aktuelles Design auf bis zu 30 Fotos anwenden, ZIP-Download. Fotos bleiben im Browser. -->
+<details class="section batch" id="mehrere-fotos">
+  <summary>
+    <h2 id="batch-h"><span data-i18n="batch.heading">Mehrere Fotos</span> <span class="batch-count" id="batch-count"></span></h2>
+    <span class="small muted batch-summary" data-i18n="batch.summary">Ein Design für das ganze Team – alle Bilder als ZIP</span>
+  </summary>
+  <div class="batch-body">
+    <p class="batch-lead" data-i18n="batch.lead">Wende das aktuelle Design auf bis zu 30 Fotos gleichzeitig an – zum Beispiel für ein ganzes Team – und lade alle Bilder als ZIP herunter. Die Fotos werden nur in deinem Browser verarbeitet und nicht gespeichert.</p>
+
+    <div class="dropzone batch-drop" id="batch-drop">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 16l4.6-4.6a2 2 0 0 1 2.8 0L16 16m-2-2 1.6-1.6a2 2 0 0 1 2.8 0L20 14M14 8h.01M6 20h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <p>
+        <span data-i18n="batch.drop">Fotos hierher ziehen oder</span>
+        <label class="link-button">
+          <span data-i18n="batch.choose">Fotos auswählen</span>
+          <input type="file" id="batch-input" class="visually-hidden" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif">
+        </label>
+      </p>
+      <p class="small" data-i18n="batch.formats">JPG, PNG, WebP oder HEIC – bis zu 30 Fotos, bleiben auf deinem Gerät</p>
+    </div>
+    <p class="status" id="batch-status" role="status" aria-live="polite"></p>
+    <p class="small muted" id="batch-empty" data-i18n="batch.empty">Noch keine Fotos ausgewählt. Text, Form, Farben und Logo kommen aus dem Editor oben; pro Foto kannst du einen eigenen Text eintragen, zum Beispiel einen Namen.</p>
+
+    <ul class="batch-list" id="batch-list" aria-labelledby="batch-h"></ul>
+
+    <div class="batch-toolbar" id="batch-toolbar" hidden>
+      <div class="field">
+        <span class="label" id="batch-size-label" data-i18n="batch.size">Auflösung</span>
+        <div class="segmented segmented-text" role="radiogroup" aria-labelledby="batch-size-label">
+          <label><input type="radio" name="batchSize" value="1080" checked><span>1080 px</span></label>
+          <label><input type="radio" name="batchSize" value="2048"><span>2048 px</span></label>
+        </div>
+      </div>
+      <div class="button-row">
+        <button type="button" class="btn btn-primary" id="batch-zip">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span id="batch-zip-label">Alle als ZIP herunterladen · 1080 px</span>
+        </button>
+        <button type="button" class="btn btn-ghost" id="batch-remove-all" data-i18n="batch.removeAll">Alle entfernen</button>
+      </div>
+      <p class="small muted" data-i18n="batch.bgHint">Hintergrund außerhalb des Kreises wie unter „6. Export“ eingestellt.</p>
+      <div class="batch-progress" id="batch-progress" hidden>
+        <progress id="batch-progress-bar" max="1" value="0" data-i18n-aria="batch.progressLabel" aria-label="Fortschritt des ZIP-Exports"></progress>
+        <p class="batch-progress-text" id="batch-progress-text" role="status" aria-live="polite"></p>
+        <button type="button" class="btn btn-ghost" id="batch-cancel" data-i18n="batch.cancel">Abbrechen</button>
+      </div>
+    </div>
+  </div>
+</details>

@@ -51,6 +51,7 @@ export default function pages(ctx) {
 
     <h2>3. Verarbeitung deiner Fotos und Logos</h2>
     <p>Fotos, Logos und Hintergrundbilder für das Profil-Banner, die du auswählst, werden ausschließlich lokal in deinem Browser verarbeitet. Sie werden weder an mich noch an GitHub oder andere Dritte übertragen. Fotos und Hintergrundbilder werden nicht gespeichert: Sobald du die Seite schließt, sind sie aus dem Speicher entfernt. Ein Logo wird nur dann gespeichert, wenn du es selbst als Teil einer eigenen Vorlage sicherst (siehe Abschnitt 4). Logos werden auch nicht in geteilte Links übernommen.</p>
+    <p>Das gilt auch, wenn du unter „Mehrere Fotos“ bis zu 30 Fotos auf einmal bearbeitest: Die Fotos werden nur im Arbeitsspeicher deines Browsers verarbeitet, weder hochgeladen noch gespeichert – auch nicht im lokalen Speicher, in eigenen Vorlagen oder in geteilten Links – und beim Schließen oder Neuladen der Seite verworfen. Die ZIP-Datei mit den fertigen Bildern entsteht ebenfalls lokal auf deinem Gerät.</p>
 
     <h2>4. Lokaler Speicher im Browser</h2>
     <p>Eigene Vorlagen (inklusive eines Logos) und deine Farbschema-Einstellung werden nur auf deinem Gerät im lokalen Speicher deines Browsers (localStorage) abgelegt – und nur dann, wenn du das selbst auslöst, zum Beispiel mit „Als eigene Vorlage speichern“. Diese Daten werden nicht übertragen, weder an mich noch an Dritte. Die Speicherung ist für die von dir gewünschte Funktion unbedingt erforderlich (§ 25 Abs. 2 Nr. 2 TDDDG).</p>

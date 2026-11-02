@@ -18,6 +18,15 @@
         </div>
       </div>
       <p class="hint" data-i18n="preview.hint">Ziehen zum Verschieben · Mausrad, Pinch oder +/− zum Zoomen · Pfeiltasten verschieben</p>
+      <!-- „Ausschnitt anpassen“ für ein Foto aus „Mehrere Fotos“ (batch.js) -->
+      <div class="crop-session" id="crop-session" role="region" aria-labelledby="crop-session-title" hidden>
+        <p class="crop-session-title" id="crop-session-title"></p>
+        <p class="small" data-i18n="batch.cropHint">Verschiebe und zoome das Foto in der Vorschau. Danach kommt dein vorheriges Foto in den Editor zurück.</p>
+        <div class="button-row">
+          <button type="button" class="btn btn-primary" id="crop-apply" data-i18n="batch.cropApply">Übernehmen</button>
+          <button type="button" class="btn btn-ghost" id="crop-cancel" data-i18n="batch.cropCancel">Abbrechen</button>
+        </div>
+      </div>
     </div>
   </section>
 

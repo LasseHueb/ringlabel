@@ -443,6 +443,36 @@ a:hover { color: var(--accent-hover); }
 .text-button { background: none; border: 0; padding: 0; font: inherit; font-weight: 800; color: var(--accent); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
 .editor { padding-top: 12px; }
 
+/* Mehrere Fotos */
+.batch { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); padding: 0; }
+.batch > summary { cursor: pointer; list-style: none; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; padding: 16px 20px; }
+.batch > summary::-webkit-details-marker { display: none; }
+.batch > summary::before { content: "▸"; color: var(--accent); font-weight: 800; transition: transform .15s; }
+.batch[open] > summary::before { transform: rotate(90deg); }
+.batch > summary h2 { margin: 0; font-size: 1.35rem; }
+.batch > summary:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: var(--radius); }
+.batch-count { font-size: .95rem; color: var(--muted); font-weight: 700; }
+.batch-body { padding: 0 20px 20px; }
+.batch-lead { color: var(--muted); max-width: 820px; margin-top: 0; }
+.batch-drop.is-disabled { opacity: .55; pointer-events: none; }
+.batch-list { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); list-style: none; margin: 14px 0; padding: 0; }
+.batch-item { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); min-width: 0; }
+.batch-item.is-editing { outline: 3px solid var(--accent); }
+.batch-thumb { width: 120px; height: 120px; }
+.batch-name { margin: 0; max-width: 100%; font-size: .8rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.batch-text { width: 100%; }
+.batch-text input { width: 100%; min-width: 0; font-size: .85rem; padding: 6px 8px; }
+.batch-note { margin: 0; font-size: .75rem; color: var(--warn-text); text-align: center; }
+.batch-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 12px; }
+.batch-actions .text-button { font-size: .8rem; }
+.batch-toolbar { display: grid; gap: 10px; }
+.batch-progress { display: grid; gap: 6px; grid-template-columns: 1fr auto; align-items: center; }
+.batch-progress progress { width: 100%; height: 12px; grid-column: 1 / -1; }
+.batch-progress-text { margin: 0; font-weight: 700; }
+.crop-session { margin-top: 10px; padding: 12px 14px; border: 2px solid var(--accent); border-radius: 12px; background: var(--surface); }
+.crop-session-title { margin: 0 0 4px; font-weight: 800; }
+.crop-session .small { margin: 0 0 8px; }
+
 /* Profil-Banner */
 .banner .lead-small { color: var(--muted); max-width: 820px; margin: 0 0 14px; }
 .banner-stage { border-radius: var(--radius); overflow: hidden; box-shadow: 0 6px 24px rgba(0, 0, 0, .14); background: var(--surface-2); }
