@@ -15,6 +15,7 @@
  *   - Rahmen- und Banner-Seite laden nur ihre eigenen Skripte und Stile; beide Werkzeug-Seiten je Sprache mit
  *     Canonical und hreflang (de, en, x-default)
  *   - Übersetzungen (js/i18n*.js) auf Deutsch und Englisch vollständig
+ *   - Skript der 404-Seite ohne Syntaxfehler; Rahmen- und Banner-Seiten beider Sprachen in der Sitemap
  * Aufruf: node scripts/check-dist.mjs   (Exit-Code 1 bei Fehlern)
  */
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
@@ -145,6 +146,14 @@ for (const f of files.filter((f) => /\.(html|css)$/.test(f))) {
       for (const l of ["de", "en", "x-default"]) if (!s.includes(`hreflang="${l}"`)) errors.push(`${pg}: hreflang „${l}“ fehlt`);
     }
   }
+}
+
+// ---------- 404-Weiterleitung lauffähig, beide Werkzeug-Seiten in der Sitemap ----------
+{
+  const m = readFileSync(join(dist, "404.html"), "utf8").match(/<script>([\s\S]*?)<\/script>/);
+  try { new Function(m ? m[1] : ""); } catch (e) { errors.push(`404.html: Skript fehlerhaft (${e.message})`); }
+  const sm = readFileSync(join(dist, "sitemap.xml"), "utf8");
+  for (const p of ["/", "/en/", "/banner/", "/en/banner/"]) if (!sm.includes(`<loc>${siteUrl}${p}</loc>`)) errors.push(`sitemap.xml: ${p} fehlt`);
 }
 
 // ---------- Übersetzungen vollständig (Deutsch und Englisch) ----------
